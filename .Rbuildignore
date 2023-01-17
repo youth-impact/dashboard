@@ -1,8 +1,0 @@
-^LICENSE\.md$
-^data-raw$
-^secrets$
-^.*\.Rproj$
-^\.github$
-^\.Rproj\.user$
-^README\.md$
-^app\.R$
