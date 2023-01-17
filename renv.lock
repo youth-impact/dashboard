@@ -225,24 +225,6 @@
       "Hash": "7c89603d81793f0d5486d91ab1fc6f1d",
       "Requirements": []
     },
-    "gargle": {
-      "Package": "gargle",
-      "Version": "1.2.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "cca71329ad88e21267f09255d3f008c2",
-      "Requirements": [
-        "cli",
-        "fs",
-        "glue",
-        "httr",
-        "jsonlite",
-        "rappdirs",
-        "rlang",
-        "rstudioapi",
-        "withr"
-      ]
-    },
     "ggokabeito": {
       "Package": "ggokabeito",
       "Version": "0.1.0",
@@ -282,29 +264,6 @@
       "Hash": "4f2596dfb05dac67b9dc558e5c6fba2e",
       "Requirements": []
     },
-    "googledrive": {
-      "Package": "googledrive",
-      "Version": "2.0.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "c3a25adbbfbb03f12e6f88c5fb1f3024",
-      "Requirements": [
-        "cli",
-        "gargle",
-        "glue",
-        "httr",
-        "jsonlite",
-        "lifecycle",
-        "magrittr",
-        "pillar",
-        "purrr",
-        "rlang",
-        "tibble",
-        "uuid",
-        "vctrs",
-        "withr"
-      ]
-    },
     "gtable": {
       "Package": "gtable",
       "Version": "0.3.1",
@@ -338,20 +297,6 @@
         "Rcpp",
         "later",
         "promises"
-      ]
-    },
-    "httr": {
-      "Package": "httr",
-      "Version": "1.4.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "57557fac46471f0dbbf44705cc6a5c8c",
-      "Requirements": [
-        "R6",
-        "curl",
-        "jsonlite",
-        "mime",
-        "openssl"
       ]
     },
     "isoband": {
@@ -533,20 +478,6 @@
         "rlang"
       ]
     },
-    "purrr": {
-      "Package": "purrr",
-      "Version": "1.0.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "d71c815267c640f17ddbf7f16144b4bb",
-      "Requirements": [
-        "cli",
-        "lifecycle",
-        "magrittr",
-        "rlang",
-        "vctrs"
-      ]
-    },
     "rappdirs": {
       "Package": "rappdirs",
       "Version": "0.3.3",
@@ -671,6 +602,21 @@
       "Hash": "34c16f1ef796057bfa06d3f4ff818a5d",
       "Requirements": []
     },
+    "thematic": {
+      "Package": "thematic",
+      "Version": "0.1.2.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "77ad63ad98b3434a01284dbf1125e404",
+      "Requirements": [
+        "farver",
+        "ggplot2",
+        "rappdirs",
+        "rlang",
+        "rstudioapi",
+        "scales"
+      ]
+    },
     "tibble": {
       "Package": "tibble",
       "Version": "3.1.8",
@@ -693,14 +639,6 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "c9c462b759a5cc844ae25b5942654d13",
-      "Requirements": []
-    },
-    "uuid": {
-      "Package": "uuid",
-      "Version": "1.1-0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "f1cb46c157d080b729159d407be83496",
       "Requirements": []
     },
     "vctrs": {
@@ -746,6 +684,14 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "9b570515751dcbae610f29885e025b41",
+      "Requirements": []
+    },
+    "zeallot": {
+      "Package": "zeallot",
+      "Version": "0.1.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "ee9b643aa8331c45d8d82eb3a137c9bc",
       "Requirements": []
     }
   }
