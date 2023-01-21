@@ -1,4 +1,4 @@
-# ConnectEd Dashboard
+# Dashboard
 
 To run the app locally:
 

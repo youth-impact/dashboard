@@ -1,8 +1,9 @@
 library('cowplot')
 library('rlang') # load before data.table to avoid masking :=
 library('data.table')
-library('ggokabeito')
+# library('ggokabeito')
 library('ggplot2')
+library('plotly')
 library('shiny')
 library('zeallot')
 
@@ -20,59 +21,64 @@ thematic::thematic_shiny()
 
 ########################################
 
-get_results = function() {
-  results = fread('sim_data.csv')
-  results[, improved := end_level > start_level]
+get_connected_results = function(input_dir = '.') {
+  d = fread(file.path(input_dir, 'connected_data.csv'))
+  a = fread(file.path(input_dir, 'connected_arms.csv'))
+  v = fread(file.path(input_dir, 'connected_levels.csv'))
 
-  results_long = melt(
-    results, measure.vars = c('start_level', 'end_level'))
+  d = merge(d, a, by = c('round_id', 'arm_id'))
+  d[, improved := end_level > start_level]
 
-  results_long[, time := factor(
+  d_long = melt(d, measure.vars = c('start_level', 'end_level'))
+  d_long[, time := factor(
     variable, c('start_level', 'end_level'), c('Sensitization', 'Endline'))]
-  results_long[, can_add := value > 0]
-  results_long[, can_divide := value == 4]
+  d_long[, can_add := value > 0]
+  d_long[, can_divide := value == 4]
 
-  r = list(results, results_long)
+  r = list(data = d, data_long = d_long, arms = a, levs = v)
 }
 
-c(results, results_long) %<-% get_results()
+input_dir = if (shiny::isRunning()) '.' else 'R'
+conn = get_connected_results(input_dir)
 
 ########################################
 
-get_pooled_barplot = function(
-    d, rounds, col, col_val, title, nudge_y, fill_vals, by_time = TRUE,
-    bar_width = 0.7, text_size = 5.5) {
+get_summary_barplot = function(
+    d, rounds, col, col_val, title, nudge_y, fill_vals, x_col = 'time',
+    by_arm = FALSE, percent = TRUE, bar_width = 0.7, text_size = 5.5) {
 
-  env = list(v = col)
+  stopifnot(is_logical(by_arm))
+  stopifnot(is_logical(percent))
 
-  if (isTRUE(by_time)) {
-    r = d[round_id %in% rounds, .N, keyby = .(time, v), env = env]
-    r[, frac_students := N / sum(N), keyby = time]
+  by1 = c(x_col, col)
+  if (by_arm) by1 = c('round_id', 'arm_id', 'arm_name', by1)
+  by2 = by1[-length(by1)]
+
+  # TODO: account for all rounds, even if zero counts
+  r = d[round_id %in% rounds, .N, keyby = by1]
+  if (percent) {
+    r[, quant_students := N / sum(N), by = by2]
+    r[, label := paste0(round(100 * quant_students), '%')]
   } else {
-    r = d[round_id %in% rounds, .N, keyby = v, env = env]
-    r[, frac_students := N / sum(N)]
-    r[, time := 'Sensitization →\nEndline']
+    r[, quant_students := sum(N), by = by2]
   }
 
-  r_sub = r[v == col_val, env = env]
-  r_sub[, perc_label := paste0(round(100 * frac_students), '%')]
+  r_sub = r[z == col_val, env = list(z = col)]
 
-  p = ggplot(r_sub, aes(x = time, y = frac_students))
+  y_lab = if (percent) 'Percentage' else 'Number'
+  y_scale = if (percent) scales::label_percent() else waiver()
+  up = if (uniqueN(r_sub[[x_col]]) == 1L) 1 else NA
 
-  p = if (isTRUE(by_time)) {
-    p +
-      geom_col(aes(fill = time), width = bar_width) +
-      geom_text(aes(label = perc_label), size = text_size, nudge_y = nudge_y) +
-      labs(x = 'Timepoint', y = 'Percentage of students', title = title) +
-      scale_y_continuous(labels = scales::label_percent()) +
-      scale_fill_manual(values = fill_vals) +
-      theme(legend.position = 'none', axis.title.x = element_blank())
-  } else {
-    p +
-      geom_col(width = bar_width, fill = fill_vals[1L]) +
-      geom_text(aes(label = perc_label), size = text_size, nudge_y = nudge_y) +
-      labs(x = 'Timepoint', y = 'Percentage of students', title = title) +
-      scale_y_continuous(labels = scales::label_percent(), limits = c(0, 1)) +
-      theme(axis.title.x = element_blank())
+  p = ggplot(r_sub, aes(x = .data[[x_col]], y = quant_students)) +
+    labs(x = 'Timepoint', y = paste(y_lab, 'of students'), title = title) +
+    geom_col(aes(fill = .data[[x_col]]), width = bar_width) +
+    scale_y_continuous(labels = y_scale, limits = c(0, up)) +
+    scale_fill_manual(values = fill_vals) +
+    theme(legend.position = 'none', axis.title.x = element_blank())
+
+  if (by_arm) p = p + facet_wrap(vars(arm_name))
+  if (percent) {
+    p = p + geom_text(aes(label = label), size = text_size, nudge_y = nudge_y)
   }
+  p
 }
