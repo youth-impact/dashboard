@@ -584,6 +584,14 @@
       "Hash": "947e4e02a79effa5d512473e10f41797",
       "Requirements": []
     },
+    "stringi": {
+      "Package": "stringi",
+      "Version": "1.7.12",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "ca8bd84263c77310739d2cf64d84d7c9",
+      "Requirements": []
+    },
     "sys": {
       "Package": "sys",
       "Version": "3.4.1",

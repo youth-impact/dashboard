@@ -1,7 +1,6 @@
 library('data.table')
 
 # super naive
-
 set.seed(1789)
 outputDir = 'R'
 
@@ -19,7 +18,6 @@ v = fread(file.path(outputDir, 'connected_levels.csv'))
 n_rounds = 5L
 range_students_per_round = c(50, 100)
 n_arms_per_round = 2L
-levs = 0:4 # beginner, add, substract, multiply, divide
 delta_levs = 0:2
 
 n_students_per_round = round(runif(
@@ -30,12 +28,18 @@ d = data.table(
   round_id = rep(1:n_rounds, n_students_per_round))
 
 d[, arm_id := rep_len(1:n_arms_per_round, .N)]
-d[, start_level := v$level[sample.int(length(v$level), .N, replace = TRUE)]]
-d[, delta_level := delta_levs[sample.int(length(delta_levs), .N, replace = TRUE)]]
-d[, end_level := pmin(max(v$level), start_level + delta_level)]
+d[, start_level := v$level_id[sample.int(nrow(v), .N, replace = TRUE)]]
+d[, delta_level := delta_levs[
+  sample.int(length(delta_levs), .N, replace = TRUE)]]
+d[, end_level := pmin(max(v$level_id), start_level + delta_level)]
+
+r = data.table(round_id = 1:n_rounds)
+r[, round_desc := stringi::stri_rand_lipsum(.N, FALSE)]
+r[, round_desc := substr(round_desc, 1L, 150L)]
+fwrite(r, file.path(outputDir, 'connected_rounds.csv'))
 
 a = unique(d[, .(round_id, arm_id)])
-setorder(m)
+setorder(a)
 a[, arm_name := glue::glue('Arm {round_id}-{arm_id}', .envir = .SD)]
 
 fwrite(d, file.path(outputDir, 'connected_data.csv'))

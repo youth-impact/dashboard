@@ -1,4 +1,5 @@
 ui = fluidPage(
+  theme = bslib::bs_theme(bootswatch = 'flatly'),
   titlePanel('ConnectEd'),
 
   tabsetPanel(
@@ -32,6 +33,8 @@ ui = fluidPage(
             selected = max(conn$data$round_id)),
           width = 2),
         mainPanel(
+          h6(textOutput('round_desc_summ')),
+          br(),
           plotOutput('plot3'),
           br(),
           plotOutput('plot4'),
@@ -51,9 +54,11 @@ ui = fluidPage(
           radioButtons(
             inputId = 'y_detl',
             label = 'Display as',
-            choices = c('percentages', 'counts')),
+            choices = c('percentage', 'count')),
           width = 2),
         mainPanel(
+          h6(textOutput('round_desc_detl')),
+          br(),
           plotOutput('plot5', width = '70%'),
           width = 10)
       )

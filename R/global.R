@@ -1,13 +1,9 @@
 library('cowplot')
 library('rlang') # load before data.table to avoid masking :=
 library('data.table')
-# library('ggokabeito')
 library('ggplot2')
-# library('plotly')
+library('glue')
 library('shiny')
-# library('zeallot')
-
-########################################
 
 theme_set(
   theme_bw() +
@@ -23,6 +19,7 @@ thematic::thematic_shiny()
 
 get_connected_results = function(input_dir = '.') {
   d = fread(file.path(input_dir, 'connected_data.csv'))
+  r = fread(file.path(input_dir, 'connected_rounds.csv'))
   a = fread(file.path(input_dir, 'connected_arms.csv'))
   v = fread(file.path(input_dir, 'connected_levels.csv'))
 
@@ -42,7 +39,7 @@ get_connected_results = function(input_dir = '.') {
   d_long[, can_add := level_id > 0]
   d_long[, can_divide := level_id == 4]
 
-  r = list(data = d, data_long = d_long, arms = a, levs = v)
+  r = list(data = d, data_long = d_long, rounds = r, arms = a, levs = v)
 }
 
 input_dir = if (shiny::isRunning()) '.' else 'R'
