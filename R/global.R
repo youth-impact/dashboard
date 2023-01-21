@@ -3,9 +3,9 @@ library('rlang') # load before data.table to avoid masking :=
 library('data.table')
 # library('ggokabeito')
 library('ggplot2')
-library('plotly')
+# library('plotly')
 library('shiny')
-library('zeallot')
+# library('zeallot')
 
 ########################################
 
@@ -26,14 +26,21 @@ get_connected_results = function(input_dir = '.') {
   a = fread(file.path(input_dir, 'connected_arms.csv'))
   v = fread(file.path(input_dir, 'connected_levels.csv'))
 
+  a[, arm_name := factor(arm_name, arm_name)]
+  v[, level_name := factor(level_name, level_name)]
+
   d = merge(d, a, by = c('round_id', 'arm_id'))
   d[, improved := end_level > start_level]
 
-  d_long = melt(d, measure.vars = c('start_level', 'end_level'))
+  d_long = melt(
+    d, measure.vars = c('start_level', 'end_level'), variable.name = 'time',
+    value.name = 'level_id')
   d_long[, time := factor(
-    variable, c('start_level', 'end_level'), c('Sensitization', 'Endline'))]
-  d_long[, can_add := value > 0]
-  d_long[, can_divide := value == 4]
+    time, c('start_level', 'end_level'), c('Sensitization', 'Endline'))]
+
+  d_long = merge(d_long, v, by = 'level_id', sort = FALSE)
+  d_long[, can_add := level_id > 0]
+  d_long[, can_divide := level_id == 4]
 
   r = list(data = d, data_long = d_long, arms = a, levs = v)
 }
@@ -70,8 +77,8 @@ get_summary_barplot = function(
   up = if (uniqueN(r_sub[[x_col]]) == 1L) 1 else NA
 
   p = ggplot(r_sub, aes(x = .data[[x_col]], y = quant_students)) +
-    labs(x = 'Timepoint', y = paste(y_lab, 'of students'), title = title) +
     geom_col(aes(fill = .data[[x_col]]), width = bar_width) +
+    labs(x = 'Timepoint', y = paste(y_lab, 'of students'), title = title) +
     scale_y_continuous(labels = y_scale, limits = c(0, up)) +
     scale_fill_manual(values = fill_vals) +
     theme(legend.position = 'none', axis.title.x = element_blank())
@@ -80,5 +87,27 @@ get_summary_barplot = function(
   if (percent) {
     p = p + geom_text(aes(label = label), size = text_size, nudge_y = nudge_y)
   }
+  p
+}
+
+get_detailed_barplot = function(
+    d, rounds, col, x_col = 'time', by_arm = FALSE, percent = TRUE,
+    bar_width = 0.7) {
+
+  stopifnot(is_logical(by_arm))
+
+  y_lab = if (percent) 'Percentage' else 'Number'
+  y_scale = if (percent) scales::label_percent() else waiver()
+  pos = if (percent) 'fill' else 'stack'
+
+  p = ggplot(d[round_id %in% rounds]) +
+    geom_bar(
+      aes(x = .data[[x_col]], fill = .data[[col]]),
+      width = bar_width, position = pos) +
+    labs(x = 'Timepoint', y = paste(y_lab, 'of students'), fill = 'Level') +
+    scale_y_continuous(labels = y_scale) +
+    scale_fill_viridis_d() +
+    theme(axis.title.x = element_blank())
+  if (by_arm) p = p + facet_wrap(vars(arm_name))
   p
 }

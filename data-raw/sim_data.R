@@ -9,8 +9,9 @@ outputDir = 'R'
 # ConnectEd
 
 # v = data.table(
-#   level = 0:4,
-#   name = c('Beginner', 'Addition', 'Subtraction', 'Multiplication', 'Division'))
+#   level_id = 0:4,
+#   level_name = c(
+#     'Beginner', 'Addition', 'Subtraction', 'Multiplication', 'Division'))
 # fwrite(v, file.path(outputDir, 'connected_levels.csv'))
 v = fread(file.path(outputDir, 'connected_levels.csv'))
 
