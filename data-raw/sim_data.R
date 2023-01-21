@@ -13,6 +13,7 @@ outputDir = 'R'
 #   level_name = c(
 #     'Beginner', 'Addition', 'Subtraction', 'Multiplication', 'Division'))
 # fwrite(v, file.path(outputDir, 'connected_levels.csv'))
+
 v = fread(file.path(outputDir, 'connected_levels.csv'))
 
 n_rounds = 5L

@@ -8,14 +8,15 @@ ui = fluidPage(
       sidebarLayout(
         sidebarPanel(
           checkboxGroupInput(
-            inputId = 'rounds',
+            inputId = 'round_ids',
             label = 'Round(s)',
             choices = sort(unique(conn$data$round_id)),
             selected = unique(conn$data$round_id)),
           width = 2),
         mainPanel(
           plotOutput('plot1'),
-          plotOutput('plot2', width = '36.4%'),
+          br(),
+          plotOutput('plot2'),
           width = 10)
       )
     ),
@@ -25,14 +26,15 @@ ui = fluidPage(
       sidebarLayout(
         sidebarPanel(
           radioButtons(
-            inputId = 'round_summ',
+            inputId = 'round_id_summ',
             label = 'Round',
             choices = sort(unique(conn$data$round_id)),
             selected = max(conn$data$round_id)),
           width = 2),
         mainPanel(
           plotOutput('plot3'),
-          plotOutput('plot4', width = '36.4%'),
+          br(),
+          plotOutput('plot4'),
           width = 10)
       )
     ),
@@ -42,7 +44,7 @@ ui = fluidPage(
       sidebarLayout(
         sidebarPanel(
           radioButtons(
-            inputId = 'round_detl',
+            inputId = 'round_id_detl',
             label = 'Round',
             choices = sort(unique(conn$data$round_id)),
             selected = max(conn$data$round_id)),
@@ -52,7 +54,7 @@ ui = fluidPage(
             choices = c('percentages', 'counts')),
           width = 2),
         mainPanel(
-          plotOutput('plot5', width = '60%'),
+          plotOutput('plot5', width = '70%'),
           width = 10)
       )
     )

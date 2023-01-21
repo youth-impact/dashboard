@@ -13,7 +13,7 @@ theme_set(
   theme_bw() +
     theme(
       text = element_text(size = 20),
-      plot.title = element_text(face = 'bold'),
+      # plot.title = element_text(face = 'bold'),
       axis.text = element_text(color = 'black'),
       legend.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = 'cm')))
 
@@ -51,7 +51,7 @@ conn = get_connected_results(input_dir)
 ########################################
 
 get_summary_barplot = function(
-    d, rounds, col, col_val, title, nudge_y, fill_vals, x_col = 'time',
+    d, round_ids, col, col_val, title, nudge_y, fill_vals, x_col = 'time',
     by_arm = FALSE, percent = TRUE, bar_width = 0.7, text_size = 5.5) {
 
   stopifnot(is_logical(by_arm))
@@ -62,7 +62,7 @@ get_summary_barplot = function(
   by2 = by1[-length(by1)]
 
   # TODO: account for all rounds, even if zero counts
-  r = d[round_id %in% rounds, .N, keyby = by1]
+  r = d[round_id %in% round_ids, .N, keyby = by1]
   if (percent) {
     r[, quant_students := N / sum(N), by = by2]
     r[, label := paste0(round(100 * quant_students), '%')]
@@ -91,16 +91,17 @@ get_summary_barplot = function(
 }
 
 get_detailed_barplot = function(
-    d, rounds, col, x_col = 'time', by_arm = FALSE, percent = TRUE,
+    d, round_ids, col, x_col = 'time', by_arm = FALSE, percent = TRUE,
     bar_width = 0.7) {
 
   stopifnot(is_logical(by_arm))
+  stopifnot(is_logical(percent))
 
   y_lab = if (percent) 'Percentage' else 'Number'
   y_scale = if (percent) scales::label_percent() else waiver()
   pos = if (percent) 'fill' else 'stack'
 
-  p = ggplot(d[round_id %in% rounds]) +
+  p = ggplot(d[round_id %in% round_ids]) +
     geom_bar(
       aes(x = .data[[x_col]], fill = .data[[col]]),
       width = bar_width, position = pos) +
