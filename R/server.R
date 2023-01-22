@@ -1,4 +1,5 @@
 server = function(input, output, session) {
+  thematic::thematic_shiny()
 
   output$plot1 = renderPlot({
     p1 = get_summary_barplot(

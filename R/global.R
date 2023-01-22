@@ -9,11 +9,8 @@ theme_set(
   theme_bw() +
     theme(
       text = element_text(size = 20),
-      # plot.title = element_text(face = 'bold'),
       axis.text = element_text(color = 'black'),
       legend.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = 'cm')))
-
-thematic::thematic_shiny()
 
 ########################################
 
