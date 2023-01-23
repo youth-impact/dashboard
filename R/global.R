@@ -12,6 +12,12 @@ theme_set(
       axis.text = element_text(color = 'black'),
       legend.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = 'cm')))
 
+thematic::thematic_shiny()
+
+input_dir = if (shiny::isRunning()) '.' else 'R'
+
+source(file.path(input_dir, 'connected.R'))
+
 ########################################
 
 get_connected_results = function(input_dir = '.') {
@@ -39,7 +45,6 @@ get_connected_results = function(input_dir = '.') {
   r = list(data = d, data_long = d_long, rounds = r, arms = a, levs = v)
 }
 
-input_dir = if (shiny::isRunning()) '.' else 'R'
 conn = get_connected_results(input_dir)
 
 ########################################
@@ -55,7 +60,6 @@ get_summary_barplot = function(
   if (by_arm) by1 = c('round_id', 'arm_id', 'arm_name', by1)
   by2 = by1[-length(by1)]
 
-  # TODO: account for all rounds, even if zero counts
   r = d[round_id %in% round_ids, .N, keyby = by1]
   if (percent) {
     r[, quant_students := N / sum(N), by = by2]

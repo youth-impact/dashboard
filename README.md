@@ -8,4 +8,4 @@ To run the app locally:
 
 1. Update the project's private R library using `renv::restore()`.
 
-1. Run the Shiny application using `shiny::runApp('R')`.
+1. Run the Shiny application using `shiny::runApp()`.
