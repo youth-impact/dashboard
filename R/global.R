@@ -16,7 +16,9 @@ thematic::thematic_shiny()
 
 input_dir = if (shiny::isRunning()) '.' else 'R'
 
-source(file.path(input_dir, 'connected.R'))
+source(file.path(input_dir, 'connected_pooled.R'))
+source(file.path(input_dir, 'connected_ab_summary.R'))
+source(file.path(input_dir, 'connected_ab_detailed.R'))
 
 ########################################
 
@@ -41,6 +43,7 @@ get_connected_results = function(input_dir = '.') {
   d_long = merge(d_long, v, by = 'level_id', sort = FALSE)
   d_long[, can_add := level_id > 0]
   d_long[, can_divide := level_id == 4]
+  d_long[, present := TRUE]
 
   r = list(data = d, data_long = d_long, rounds = r, arms = a, levs = v)
 }

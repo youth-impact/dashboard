@@ -9,7 +9,11 @@ ui = navbarPage(
 
   tabPanel(
     'ConnectEd',
-    connected_ui('connected', conn),
+    tabsetPanel(
+      connected_pooled_ui('connected_pooled', conn),
+      connected_ab_summary_ui('connected_ab_summary', conn),
+      connected_ab_detailed_ui('connected_ab_detailed', conn)
+    )
   ),
 
   tabPanel(
