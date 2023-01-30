@@ -1,21 +1,12 @@
-connected_ab_detailed_ui = function(id, conn) {
+connected_ab_detailed_ui = function(id) {
   ns = NS(id)
-  round_ids = sort(unique(conn$data$round_id))
 
   tabPanel(
     'A/B Detailed Results',
     sidebarLayout(
 
       sidebarPanel(
-        radioButtons(
-          inputId = ns('round_ids'),
-          label = 'Round',
-          choices = round_ids,
-          selected = max(round_ids)),
-        radioButtons(
-          inputId = ns('y_display'),
-          label = 'Display as',
-          choices = c('percentage', 'count')),
+        uiOutput(ns('ui_input')),
         width = 2),
 
       mainPanel(
@@ -28,26 +19,41 @@ connected_ab_detailed_ui = function(id, conn) {
 }
 
 connected_ab_detailed_server = function(id, conn) {
+  moduleServer(id, function(input, output, session) {
 
-  moduleServer(
-    id,
-    function(input, output, session) {
+    d_long = copy(conn$data_long)
+    d_long[, time := factor(
+      time, c('Sensitization', 'Endline'), c('Sens.', 'Endline'))]
+    rounds_avail = sort(unique(conn$data$round_id))
 
-      d_long = copy(conn$data_long)
-      d_long[, time := factor(
-        time, c('Sensitization', 'Endline'), c('Sens.', 'Endline'))]
+    output$ui_input = renderUI({
+      ns = session$ns
+      tagList(
+        radioButtons(
+          inputId = ns('round_ids'),
+          label = 'Round',
+          choices = rounds_avail,
+          selected = max(rounds_avail)),
+        radioButtons(
+          inputId = ns('y_display'),
+          label = 'Display as',
+          choices = c('percentage', 'count'))
+      )
+    })
 
-      output$round_text = renderText({
-        r = conn$rounds[round_id == input$round_ids]
-        glue('Round {r$round_id}: {r$round_desc}')
-      })
+    output$round_text = renderText({
+      req(input$round_ids)
+      r = conn$rounds[round_id == input$round_ids]
+      glue('Round {r$round_id}: {r$round_desc}')
+    }) |>
+      bindCache(input$round_ids)
 
-      output$plot1 = renderPlot({
-        p = get_detailed_barplot(
-          d_long, input$round_ids, col = 'level_name', by_arm = TRUE,
-          percent = startsWith(input$y_display, 'percent'))
-        p
-      })
-    }
-  )
+    output$plot1 = renderPlot({
+      req(input$round_ids, input$y_display)
+      get_detailed_barplot(
+        d_long, input$round_ids, col = 'level_name', by_arm = TRUE,
+        percent = startsWith(input$y_display, 'percent'))
+    }) |>
+      bindCache(input$round_ids, input$y_display)
+  })
 }

@@ -16,10 +16,6 @@ thematic::thematic_shiny()
 
 input_dir = if (shiny::isRunning()) '.' else 'R'
 
-source(file.path(input_dir, 'connected_pooled.R'))
-source(file.path(input_dir, 'connected_ab_summary.R'))
-source(file.path(input_dir, 'connected_ab_detailed.R'))
-
 ########################################
 
 get_connected_results = function(input_dir = '.') {
@@ -79,10 +75,10 @@ get_summary_barplot = function(
 
   p = ggplot(r_sub, aes(x = .data[[x_col]], y = quant_students)) +
     geom_col(aes(fill = .data[[x_col]]), width = bar_width) +
-    labs(x = 'Timepoint', y = paste(y_lab, 'of students'), title = title) +
+    labs(x = '', y = paste(y_lab, 'of students'), title = title) +
     scale_y_continuous(labels = y_scale, limits = c(0, up)) +
     scale_fill_manual(values = fill_vals) +
-    theme(legend.position = 'none', axis.title.x = element_blank())
+    theme(legend.position = 'none')
 
   if (by_arm) p = p + facet_wrap(vars(arm_name))
   if (percent) {
@@ -106,10 +102,9 @@ get_detailed_barplot = function(
     geom_bar(
       aes(x = .data[[x_col]], fill = .data[[col]]),
       width = bar_width, position = pos) +
-    labs(x = 'Timepoint', y = paste(y_lab, 'of students'), fill = 'Level') +
+    labs(x = '', y = paste(y_lab, 'of students'), fill = 'Level') +
     scale_y_continuous(labels = y_scale) +
-    scale_fill_viridis_d() +
-    theme(axis.title.x = element_blank())
+    scale_fill_viridis_d()
   if (by_arm) p = p + facet_wrap(vars(arm_name))
   p
 }
