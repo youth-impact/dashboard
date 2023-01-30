@@ -7,4 +7,4 @@ if (Sys.getenv('SHINY_APPS_IO') == '') {
 p = yaml::read_yaml(param_file)
 
 rsconnect::setAccountInfo(p$name, p$token, p$secret)
-rsconnect::deployApp('R', appName = Sys.getenv('APP_NAME'), forceUpdate = TRUE)
+rsconnect::deployApp(appName = Sys.getenv('APP_NAME'), forceUpdate = TRUE)
