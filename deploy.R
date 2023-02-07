@@ -2,9 +2,11 @@
 # done: added the corresponding email address as viewer on the drive folder
 
 if (Sys.getenv('GITHUB_ACTIONS') == 'true') {
-  if (!dir.exists('secrets')) dir.create('secrets')
-  path = file.path('secrets', 'google_token.json')
-  cat(Sys.getenv('GOOGLE_TOKEN'), file = path)
+  # if (!dir.exists('secrets')) dir.create('secrets')
+  path = 'google_token.json'
+  # on GitHub Actions, Sys.getenv('GOOGLE_TOKEN') should be a json string
+  cat(Sys.getenv('GOOGLE_TOKEN'), file = path) # write the json string to a file
+  # the file should be sent to shinyapps.io, but something's not working
   cat(glue::glue('GOOGLE_TOKEN={path}\n'), file = '.Renviron', append = TRUE)
 }
 
