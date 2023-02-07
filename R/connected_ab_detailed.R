@@ -12,19 +12,19 @@ connected_ab_detailed_ui = function(id) {
       mainPanel(
         h6(textOutput(ns('round_text'))),
         br(),
-        plotOutput(ns('plot1'), width = '70%'),
+        plotOutput(ns('plot_all'), width = '70%'),
         width = 10)
     )
   )
 }
 
-connected_ab_detailed_server = function(id, conn) {
+connected_ab_detailed_server = function(id, connected) {
   moduleServer(id, function(input, output, session) {
 
-    d_long = copy(conn$data_long)
+    d_long = copy(connected$data_long)
     d_long[, time := factor(
       time, c('Sensitization', 'Endline'), c('Sens.', 'Endline'))]
-    rounds_avail = sort(unique(conn$data$round_id))
+    rounds_avail = sort(unique(connected$data$round_id))
 
     output$ui_input = renderUI({
       ns = session$ns
@@ -43,12 +43,12 @@ connected_ab_detailed_server = function(id, conn) {
 
     output$round_text = renderText({
       req(input$round_ids)
-      r = conn$rounds[round_id == input$round_ids]
-      glue('Round {r$round_id}: {r$round_desc}')
+      rounds_now = connected$rounds[round_id == input$round_ids]
+      glue('Round {rounds_now$round_id}: {rounds_now$round_desc}')
     }) |>
       bindCache(input$round_ids)
 
-    output$plot1 = renderPlot({
+    output$plot_all = renderPlot({
       req(input$round_ids, input$y_display)
       get_detailed_barplot(
         d_long, input$round_ids, col = 'level_name', by_arm = TRUE,
