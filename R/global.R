@@ -3,6 +3,7 @@ library('rlang') # load before data.table to avoid masking :=
 library('data.table')
 library('ggplot2')
 library('glue')
+library('googledrive')
 library('shiny')
 
 theme_set(
@@ -14,42 +15,27 @@ theme_set(
 
 thematic::thematic_shiny()
 
-# because csv files are currently part of the git repo, this ensures
-# that both shiny::runApp() and source('R/global.R') can load the data
-input_dir = if (shiny::isRunning()) '.' else 'R'
-
 ########################################
 
-get_connected_results = function(input_dir = '.') {
-  data = fread(file.path(input_dir, 'connected_data.csv'))
-  rounds = fread(file.path(input_dir, 'connected_rounds.csv'))
-  arms = fread(file.path(input_dir, 'connected_arms.csv'))
-  levs = fread(file.path(input_dir, 'connected_levels.csv'))
+# so shiny::runApp() and source('R/global.R') can load the params file
+input_dir = if (shiny::isRunning()) '.' else 'R'
+params = yaml::read_yaml(file.path(input_dir, 'params.yaml'))
 
-  arms[, arm_name := factor(arm_name, arm_name)]
-  levs[, level_name := factor(level_name, level_name)]
-
-  data = merge(data, arms, by = c('round_id', 'arm_id'))
-  data[, improved := end_level > start_level]
-
-  data_long = melt(
-    data, measure.vars = c('start_level', 'end_level'),
-    variable.name = 'time', value.name = 'level_id')
-  data_long[, time := factor(
-    time, c('start_level', 'end_level'), c('Sensitization', 'Endline'))]
-
-  data_long = merge(data_long, levs, by = 'level_id', sort = FALSE)
-  data_long[, can_add := level_id > 0]
-  data_long[, can_divide := level_id == 4]
-  data_long[, present := TRUE]
-
-  list(data = data, data_long = data_long,
-       rounds = rounds, arms = arms, levs = levs)
+if (Sys.getenv('GOOGLE_TOKEN') == '') {
+  drive_auth(email = params$email)
+} else {
+  drive_auth(path = Sys.getenv('GOOGLE_TOKEN'))
 }
 
-connected = get_connected_results(input_dir)
-
 ########################################
+
+get_file_metadata = function(folder_url) {
+  files = setDT(drive_ls(folder_url))
+  files = files[!startsWith(name, '_') & endsWith(name, '.csv')]
+  setorder(files, name)
+  files[, modified_time := sapply(files$drive_resource, \(f) f$modifiedTime)]
+  files[]
+}
 
 get_summary_barplot = function(
     data, round_ids, col, col_val, title, nudge_y, fill_vals, x_col = 'time',
@@ -72,13 +58,13 @@ get_summary_barplot = function(
 
   data_now = data_now[z == col_val, env = list(z = col)]
 
-  y_lab = if (percent) 'Percentage' else 'Number'
+  y_lab = paste(if (percent) 'Percentage' else 'Number', 'of students')
   y_scale = if (percent) scales::label_percent() else waiver()
   upper_lim = if (uniqueN(data_now[[x_col]]) == 1L) 1 else NA
 
   p = ggplot(data_now, aes(x = .data[[x_col]], y = quant_students)) +
     geom_col(aes(fill = .data[[x_col]]), width = bar_width) +
-    labs(x = '', y = paste(y_lab, 'of students'), title = title) +
+    labs(x = '', y = y_lab, title = title) +
     scale_y_continuous(labels = y_scale, limits = c(0, upper_lim)) +
     scale_fill_manual(values = fill_vals) +
     theme(legend.position = 'none')
@@ -97,7 +83,7 @@ get_detailed_barplot = function(
   stopifnot(is_logical(by_arm))
   stopifnot(is_logical(percent))
 
-  y_lab = if (percent) 'Percentage' else 'Number'
+  y_lab = paste(if (percent) 'Percentage' else 'Number', 'of students')
   y_scale = if (percent) scales::label_percent() else waiver()
   position = if (percent) 'fill' else 'stack'
   data_now = data[round_id %in% round_ids]
@@ -106,7 +92,7 @@ get_detailed_barplot = function(
     geom_bar(
       aes(x = .data[[x_col]], fill = .data[[col]]),
       width = bar_width, position = position) +
-    labs(x = '', y = paste(y_lab, 'of students'), fill = 'Level') +
+    labs(x = '', y = y_lab, fill = 'Level') +
     scale_y_continuous(labels = y_scale) +
     scale_fill_viridis_d()
   if (by_arm) p = p + facet_wrap(vars(arm_name))

@@ -18,22 +18,23 @@ connected_ab_detailed_ui = function(id) {
   )
 }
 
-connected_ab_detailed_server = function(id, connected) {
+connected_ab_detailed_server = function(id, data_proc) {
   moduleServer(id, function(input, output, session) {
 
-    d_long = copy(connected$data_long)
-    d_long[, time := factor(
-      time, c('Sensitization', 'Endline'), c('Sens.', 'Endline'))]
-    rounds_avail = sort(unique(connected$data$round_id))
+    rounds_avail = reactive({
+      req(data_proc)
+      sort(unique(data_proc()$data$round_id))
+    })
 
     output$ui_input = renderUI({
+      req(rounds_avail)
       ns = session$ns
       tagList(
         radioButtons(
           inputId = ns('round_ids'),
           label = 'Round',
-          choices = rounds_avail,
-          selected = max(rounds_avail)),
+          choices = rounds_avail(),
+          selected = max(rounds_avail())),
         radioButtons(
           inputId = ns('y_display'),
           label = 'Display as',
@@ -42,16 +43,21 @@ connected_ab_detailed_server = function(id, connected) {
     })
 
     output$round_text = renderText({
-      req(input$round_ids)
-      rounds_now = connected$rounds[round_id == input$round_ids]
+      req(input$round_ids, data_proc)
+      rounds_now = data_proc()$rounds[round_id == input$round_ids]
       glue('Round {rounds_now$round_id}: {rounds_now$round_desc}')
     }) |>
       bindCache(input$round_ids)
 
     output$plot_all = renderPlot({
-      req(input$round_ids, input$y_display)
+      req(input$round_ids, input$y_display, data_proc)
+
+      data_long = copy(data_proc()$data_long)
+      data_long[, time := factor(
+        time, c('Sensitization', 'Endline'), c('Sens.', 'Endline'))]
+
       get_detailed_barplot(
-        d_long, input$round_ids, col = 'level_name', by_arm = TRUE,
+        data_long, input$round_ids, col = 'level_name', by_arm = TRUE,
         percent = startsWith(input$y_display, 'percent'))
     }) |>
       bindCache(input$round_ids, input$y_display)
