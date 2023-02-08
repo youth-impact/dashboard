@@ -18,14 +18,16 @@ thematic::thematic_shiny()
 ########################################
 
 # so shiny::runApp() and source('R/global.R') can load the params file
-input_dir = if (shiny::isRunning()) '.' else 'R'
-params = yaml::read_yaml(file.path(input_dir, 'params.yaml'))
+# input_dir = if (shiny::isRunning()) '.' else 'R'
+# cat(file = stderr(), input_dir, '\n')
+# params = yaml::read_yaml(file.path(input_dir, 'params.yaml'))
+params = yaml::read_yaml('params.yaml')
 
 if (Sys.getenv('GOOGLE_TOKEN') == '') {
   drive_auth(email = params$email)
 } else {
   cat(file = stderr(), Sys.getenv('GOOGLE_TOKEN'), '\n')
-  cat(file = stderr(), dir(input_dir), '\n')
+  # cat(file = stderr(), dir(input_dir), '\n')
   cat(file = stderr(), readLines(Sys.getenv('GOOGLE_TOKEN')))
   drive_auth(path = Sys.getenv('GOOGLE_TOKEN'))
 }
