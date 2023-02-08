@@ -1,53 +1,65 @@
-connected_ab_detailed_ui = function(id, conn) {
+connected_ab_detailed_ui = function(id) {
   ns = NS(id)
-  round_ids = sort(unique(conn$data$round_id))
 
   tabPanel(
     'A/B Detailed Results',
     sidebarLayout(
 
       sidebarPanel(
-        radioButtons(
-          inputId = ns('round_ids'),
-          label = 'Round',
-          choices = round_ids,
-          selected = max(round_ids)),
-        radioButtons(
-          inputId = ns('y_display'),
-          label = 'Display as',
-          choices = c('percentage', 'count')),
+        uiOutput(ns('ui_input')),
         width = 2),
 
       mainPanel(
         h6(textOutput(ns('round_text'))),
         br(),
-        plotOutput(ns('plot1'), width = '70%'),
+        plotOutput(ns('plot_all'), width = '70%'),
         width = 10)
     )
   )
 }
 
-connected_ab_detailed_server = function(id, conn) {
+connected_ab_detailed_server = function(id, data_proc) {
+  moduleServer(id, function(input, output, session) {
 
-  moduleServer(
-    id,
-    function(input, output, session) {
+    rounds_avail = reactive({
+      req(data_proc)
+      sort(unique(data_proc()$data$round_id))
+    })
 
-      d_long = copy(conn$data_long)
-      d_long[, time := factor(
+    output$ui_input = renderUI({
+      req(rounds_avail)
+      ns = session$ns
+      tagList(
+        radioButtons(
+          inputId = ns('round_ids'),
+          label = 'Round',
+          choices = rounds_avail(),
+          selected = max(rounds_avail())),
+        radioButtons(
+          inputId = ns('y_display'),
+          label = 'Display as',
+          choices = c('percentage', 'count'))
+      )
+    })
+
+    output$round_text = renderText({
+      req(input$round_ids, data_proc)
+      rounds_now = data_proc()$rounds[round_id == input$round_ids]
+      glue('Round {rounds_now$round_id}: {rounds_now$round_desc}')
+    }) |>
+      bindCache(input$round_ids)
+
+    output$plot_all = renderPlot({
+      req(input$round_ids, input$y_display, data_proc)
+
+      data_long = copy(data_proc()$data_long)
+      data_long[, time := factor(
         time, c('Sensitization', 'Endline'), c('Sens.', 'Endline'))]
 
-      output$round_text = renderText({
-        r = conn$rounds[round_id == input$round_ids]
-        glue('Round {r$round_id}: {r$round_desc}')
-      })
-
-      output$plot1 = renderPlot({
-        p = get_detailed_barplot(
-          d_long, input$round_ids, col = 'level_name', by_arm = TRUE,
-          percent = startsWith(input$y_display, 'percent'))
-        p
-      })
-    }
-  )
+      get_detailed_barplot(
+        data_long, input$round_ids, col = 'level_name', by_arm = TRUE,
+        percent = startsWith(input$y_display, 'percent'))
+    }) |>
+      bindCache(input$round_ids, input$y_display)
+  })
 }
