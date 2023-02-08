@@ -26,6 +26,7 @@ if (Sys.getenv('GOOGLE_TOKEN') == '') {
 } else {
   cat(file = stderr(), Sys.getenv('GOOGLE_TOKEN'), '\n')
   cat(file = stderr(), dir(input_dir), '\n')
+  cat(file = stderr(), readLines(Sys.getenv('GOOGLE_TOKEN')))
   drive_auth(path = Sys.getenv('GOOGLE_TOKEN'))
 }
 
