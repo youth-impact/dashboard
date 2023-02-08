@@ -1,4 +1,5 @@
 # done: created GitHub Secret for GOOGLE_TOKEN containing the json
+# done: made the secret an env var in the GH Actions yaml files
 # done: added the corresponding email address as viewer on the drive folder
 
 if (Sys.getenv('GITHUB_ACTIONS') == 'true') {
@@ -6,14 +7,9 @@ if (Sys.getenv('GITHUB_ACTIONS') == 'true') {
   # so we write the multi-line json string to a file
   # and write the path to the file to .Renviron
   # now the json file and .Renviron should be sent to shinyapps.io
-  message('Number of chars in GOOGLE_TOKEN: ', nchar(Sys.getenv('GOOGLE_TOKEN')))
-
   path = 'google_token.json'
   cat(Sys.getenv('GOOGLE_TOKEN'), file = path)
-  cat(paste0('GOOGLE_TOKEN_PATH=', path), '\n', file = '.Renviron', append = TRUE)
-
-  message('Number of chars in GOOGLE_TOKEN file: ',
-          paste(nchar(readLines(path)), collapse = ' '))
+  cat(paste0('GOOGLE_TOKEN=', path), '\n', file = '.Renviron', append = TRUE)
 }
 
 shiny_cred = if (Sys.getenv('SHINY_APPS_IO') == '') {
