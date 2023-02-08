@@ -6,9 +6,14 @@ if (Sys.getenv('GITHUB_ACTIONS') == 'true') {
   # so we write the multi-line json string to a file
   # and write the path to the file to .Renviron
   # now the json file and .Renviron should be sent to shinyapps.io
+  message('Number of chars in GOOGLE_TOKEN: ', nchar(Sys.getenv('GOOGLE_TOKEN')))
+
   path = 'google_token.json'
   cat(Sys.getenv('GOOGLE_TOKEN'), file = path)
-  cat(glue::glue('GOOGLE_TOKEN={path}\n'), file = '.Renviron', append = TRUE)
+  cat(paste0('GOOGLE_TOKEN_PATH=', path), '\n', file = '.Renviron', append = TRUE)
+
+  message('Number of chars in GOOGLE_TOKEN file: ',
+          paste(nchar(readLines(path)), collapse = ' '))
 }
 
 shiny_cred = if (Sys.getenv('SHINY_APPS_IO') == '') {
