@@ -24,6 +24,8 @@ params = yaml::read_yaml(file.path(input_dir, 'params.yaml'))
 if (Sys.getenv('GOOGLE_TOKEN') == '') {
   drive_auth(email = params$email)
 } else {
+  cat(file = stderr(), Sys.getenv('GOOGLE_TOKEN'), '\n')
+  cat(file = stderr(), dir(input_dir), '\n')
   drive_auth(path = Sys.getenv('GOOGLE_TOKEN'))
 }
 
