@@ -23,7 +23,7 @@ connected_ab_summary_server = function(id, data_proc) {
 
     rounds_avail = reactive({
       req(data_proc)
-      sort(unique(data_proc()$data$round_id))
+      get_rounds_avail(data_proc()$data)
     })
 
     output$ui_input = renderUI({
@@ -33,23 +33,21 @@ connected_ab_summary_server = function(id, data_proc) {
         inputId = ns('round_ids'),
         label = 'Round',
         choices = rounds_avail(),
-        selected = max(rounds_avail()))
+        selected = tail(rounds_avail(), n = 1L))
     })
 
     output$round_text = renderText({
       req(input$round_ids, data_proc)
       rounds_now = data_proc()$rounds[round_id == input$round_ids]
-      glue('Round {rounds_now$round_id}: {rounds_now$round_desc}')
+      glue('Round {rounds_now$round_name}: {rounds_now$round_purpose}')
     }) |>
       bindCache(input$round_ids)
 
     output$plot_all = renderPlot({
       req(input$round_ids, data_proc)
 
-      data = copy(data_proc()$data)[, time := 'Sens. to\nEndline']
+      data = copy(data_proc()$data)[, time := 'Baseline to\nEndline']
       data_long = copy(data_proc()$data_long)
-      data_long[, time := factor(
-        time, c('Sensitization', 'Endline'), c('Sens.', 'Endline'))]
 
       p_add = get_summary_barplot(
         data_long, input$round_ids, col = 'can_add', col_val = FALSE,

@@ -21,7 +21,7 @@ connected_pooled_server = function(id, data_proc) {
 
     rounds_avail = reactive({
       req(data_proc)
-      sort(unique(data_proc()$data$round_id))
+      get_rounds_avail(data_proc()$data)
     })
 
     output$ui_input = renderUI({
@@ -38,7 +38,7 @@ connected_pooled_server = function(id, data_proc) {
       req(input$round_ids, data_proc)
 
       data = copy(data_proc()$data)
-      data[, time := 'Sensitization\nto Endline']
+      data[, time := 'Baseline\nto Endline']
       data_long = data_proc()$data_long
 
       p_add = get_summary_barplot(

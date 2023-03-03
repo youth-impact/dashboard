@@ -23,7 +23,7 @@ connected_ab_detailed_server = function(id, data_proc) {
 
     rounds_avail = reactive({
       req(data_proc)
-      sort(unique(data_proc()$data$round_id))
+      get_rounds_avail(data_proc()$data)
     })
 
     output$ui_input = renderUI({
@@ -34,7 +34,7 @@ connected_ab_detailed_server = function(id, data_proc) {
           inputId = ns('round_ids'),
           label = 'Round',
           choices = rounds_avail(),
-          selected = max(rounds_avail())),
+          selected = tail(rounds_avail(), n = 1L)),
         radioButtons(
           inputId = ns('y_display'),
           label = 'Display as',
@@ -45,7 +45,7 @@ connected_ab_detailed_server = function(id, data_proc) {
     output$round_text = renderText({
       req(input$round_ids, data_proc)
       rounds_now = data_proc()$rounds[round_id == input$round_ids]
-      glue('Round {rounds_now$round_id}: {rounds_now$round_desc}')
+      glue('Round {rounds_now$round_name}: {rounds_now$round_purpose}')
     }) |>
       bindCache(input$round_ids)
 
@@ -53,8 +53,6 @@ connected_ab_detailed_server = function(id, data_proc) {
       req(input$round_ids, input$y_display, data_proc)
 
       data_long = copy(data_proc()$data_long)
-      data_long[, time := factor(
-        time, c('Sensitization', 'Endline'), c('Sens.', 'Endline'))]
 
       get_detailed_barplot(
         data_long, input$round_ids, col = 'level_name', by_arm = TRUE,
