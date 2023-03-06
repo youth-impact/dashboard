@@ -19,19 +19,15 @@ connected_pooled_ui = function(id) {
 connected_pooled_server = function(id, data_proc) {
   moduleServer(id, function(input, output, session) {
 
-    rounds_avail = reactive({
-      req(data_proc)
-      get_rounds_avail(data_proc()$data)
-    })
-
     output$ui_input = renderUI({
-      req(rounds_avail)
+      req(data_proc)
       ns = session$ns
+      choices = get_choices(data_proc()$data)
       checkboxGroupInput(
         inputId = ns('round_ids'),
         label = 'Round(s)',
-        choices = rounds_avail(),
-        selected = rounds_avail())
+        choices = choices,
+        selected = choices)
     })
 
     output$plot_all = renderPlot({

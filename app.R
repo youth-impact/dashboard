@@ -1,14 +1,17 @@
+# create the ui object for the shiny app
+# separated into tabPanels for Reach, ConnectEd, TaRL, Zones, and Status
+# a given program's tabPanel consists of a set of tabPanels for the plots
 ui = navbarPage(
   theme = bslib::bs_theme(bootswatch = 'cosmo'),
-  'Youth Impact',
+  title = 'Youth Impact',
 
   tabPanel(
-    'Reach',
-    'reach stuff'
+    title = 'Reach',
+    'reach stuff' # placeholder
   ),
 
   tabPanel(
-    'ConnectEd',
+    title = 'ConnectEd',
     tabsetPanel(
       connected_pooled_ui('connected_pooled'),
       connected_ab_summary_ui('connected_ab_summary'),
@@ -17,13 +20,13 @@ ui = navbarPage(
   ),
 
   tabPanel(
-    'TaRL',
-    'tarl stuff'
+    title = 'TaRL',
+    'tarl stuff' # placeholder
   ),
 
   tabPanel(
-    'Zones',
-    'zones stuff'
+    title = 'Zones',
+    'zones stuff' # placeholder
   ),
 
   tabPanel(
@@ -32,6 +35,7 @@ ui = navbarPage(
   )
 )
 
+# create the server object for the shiny app
 server = function(input, output, session) {
   data_raw = get_data_raw_server('get_data_raw', params$folder_url)
   data_proc = get_data_proc_server('get_data_proc', data_raw)
@@ -42,4 +46,5 @@ server = function(input, output, session) {
   connected_ab_detailed_server('connected_ab_detailed', data_proc)
 }
 
+# create the shiny app object
 shiny::shinyApp(ui = ui, server = server)

@@ -21,19 +21,15 @@ connected_ab_summary_ui = function(id) {
 connected_ab_summary_server = function(id, data_proc) {
   moduleServer(id, function(input, output, session) {
 
-    rounds_avail = reactive({
-      req(data_proc)
-      get_rounds_avail(data_proc()$data)
-    })
-
     output$ui_input = renderUI({
-      req(rounds_avail)
+      req(data_proc)
       ns = session$ns
+      choices = get_choices(data_proc()$data)
       radioButtons(
         inputId = ns('round_ids'),
         label = 'Round',
-        choices = rounds_avail(),
-        selected = tail(rounds_avail(), n = 1L))
+        choices = choices,
+        selected = tail(choices, n = 1L))
     })
 
     output$round_text = renderText({

@@ -1,3 +1,4 @@
+library('checkmate')
 library('cowplot')
 library('rlang') # load before data.table to avoid masking :=
 library('data.table')
@@ -6,6 +7,7 @@ library('glue')
 library('googledrive')
 library('shiny')
 
+# set global ggplot theme
 theme_set(
   theme_bw() +
     theme(
@@ -13,21 +15,33 @@ theme_set(
       axis.text = element_text(color = 'black'),
       legend.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = 'cm')))
 
+# set ggplot styling to match CSS for shiny app
 thematic::thematic_shiny()
 
 ########################################
 
+# load parameters
 params = yaml::read_yaml('params.yaml')
 
-if (Sys.getenv('GOOGLE_TOKEN') == '') {
+# authorize googledrive to access data files
+if (Sys.getenv('GOOGLE_TOKEN') == '') { # locally
   drive_auth(email = params$email)
-} else {
+} else { # GitHub Actions
   drive_auth(path = Sys.getenv('GOOGLE_TOKEN'))
 }
 
 ########################################
 
+#' Get metadata for files in a Google Drive folder
+#'
+#' This is a thin wrapper around [googledrive::drive_ls()].
+#'
+#' @param folder_url String of folder url.
+#'
+#' @return `data.table` containing one row per file, excluding files that start
+#'   with "_".
 get_file_metadata = function(folder_url) {
+  assert_string(folder_url)
   files = setDT(drive_ls(folder_url))
   files = files[!startsWith(name, '_')]
   setorder(files, name)
@@ -35,7 +49,15 @@ get_file_metadata = function(folder_url) {
   files[]
 }
 
+#' Get clean ConnectEd data
+#'
+#' This function largely renames and reformats selected columns.
+#'
+#' @param data_old `data.table` of ConnectEd data derived from the Stata file.
+#'
+#' @return `data.table` of clean ConnectEd data.
 get_clean_connected_data = function(data_old) {
+  assert_data_table(data_old)
   data_new = data_old[, .(
     round = as.integer(round),
     treatment = treatment,
@@ -50,14 +72,47 @@ get_clean_connected_data = function(data_old) {
   data_new[]
 }
 
-get_rounds_avail = function(data) {
-  data_rounds = unique(data[, .(round_id, round_name)])
-  setorder(data_rounds, round_id)
-  rounds_avail = as.list(data_rounds$round_id)
-  names(rounds_avail) = data_rounds$round_name
-  rounds_avail
+#' Get choices for UI input
+#'
+#' This function finds unique rows of a `data.table` to use as choices for UI
+#' input, such as [shiny::radioButtons()] or [shiny::checkboxGroupInput()].
+#'
+#' @param data `data.table` that has columns corresponding to `name_col` and
+#'   `val_col`.
+#' @param name_col String indicating column to use for names.
+#' @param val_col String indicating column to use for values.
+#'
+#' @return Named list, where names will be displayed to the user and values will
+#'   be used within the app.
+get_choices = function(data, name_col = 'round_name', val_col = 'round_id') {
+  assert_data_table(data)
+  assert_subset(c(name_col, val_col), colnames(data))
+  data_unique = unique(data[, c(..name_col, ..val_col)])
+  setorderv(data_unique, val_col)
+  choices = as.list(data_unique[[val_col]])
+  names(choices) = data_unique[[name_col]]
+  choices
 }
 
+#' Get summary barplot for outcomes data
+#'
+#' This function creates a barplot, optionally faceted, to summarize counts or
+#' percentages based on individual-level data.
+#'
+#' @param data `data.table` of individual-level data, e.g., from ConnectEd.
+#' @param round_ids
+#' @param col
+#' @param col_val
+#' @param title
+#' @param nudge_y
+#' @param fill_vals
+#' @param x_col
+#' @param by_arm
+#' @param percent
+#' @param bar_width
+#' @param text_size
+#'
+#' @return `ggplot` object.
 get_summary_barplot = function(
     data, round_ids, col, col_val, title, nudge_y, fill_vals, x_col = 'time',
     by_arm = FALSE, percent = TRUE, bar_width = 0.7, text_size = 5.5) {
