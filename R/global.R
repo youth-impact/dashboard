@@ -23,7 +23,7 @@ thematic::thematic_shiny()
 # load parameters
 params = yaml::read_yaml('params.yaml')
 
-# authorize googledrive to access data files
+# authorize googledrive to access files
 if (Sys.getenv('GOOGLE_TOKEN') == '') { # locally
   drive_auth(email = params$email)
 } else { # GitHub Actions
@@ -72,6 +72,8 @@ get_clean_connected_data = function(data_old) {
   data_new[]
 }
 
+########################################
+
 #' Get choices for UI input
 #'
 #' This function finds unique rows of a `data.table` to use as choices for UI
@@ -94,37 +96,49 @@ get_choices = function(data, name_col = 'round_name', val_col = 'round_id') {
   choices
 }
 
+#' Get narrative text describing a ConnectEd round
+#'
+#' @param rounds `data.table` containing round metadata.
+#' @param round_ids single value for which to create text.
+#'
+#' @return A string or something like it.
+get_round_text = function(rounds, round_ids) {
+  rounds_now = rounds[round_id == round_ids]
+  round_text = glue('Round {rounds_now$round_name}: {rounds_now$round_purpose}')
+}
+
+########################################
+
 #' Get summary barplot for outcomes data
 #'
 #' This function creates a barplot, optionally faceted, to summarize counts or
 #' percentages based on individual-level data.
 #'
 #' @param data `data.table` of individual-level data, e.g., from ConnectEd.
-#' @param round_ids
-#' @param col
-#' @param col_val
-#' @param title
-#' @param nudge_y
-#' @param fill_vals
-#' @param x_col
-#' @param by_arm
-#' @param percent
-#' @param bar_width
-#' @param text_size
+#' @param col string indicating column in `data` that contains logical values to
+#'   use for calculating counts or percentages.
+#' @param title string indicating title of plot.
+#' @param nudge_y numeric used by [ggplot2::geom_text()] for text above bars.
+#' @param fill_vals character vector indicating fill colors for bars.
+#' @param x_col string indicating column in `data` to use for x-axis.
+#' @param by_treatment logical indicating whether to facet by `treatment_name`.
+#' @param percent logical indicating whether to plot percentages or counts.
+#' @param bar_width numeric used by [ggplot2::geom_col()] for width of bars.
+#' @param text_size numeric used by [ggplot2::geom_text()] for text above bars.
 #'
 #' @return `ggplot` object.
 get_summary_barplot = function(
-    data, round_ids, col, col_val, title, nudge_y, fill_vals, x_col = 'time',
-    by_arm = FALSE, percent = TRUE, bar_width = 0.7, text_size = 5.5) {
+    data, col, title, nudge_y, fill_vals, x_col = 'time',
+    by_treatment = FALSE, percent = TRUE, bar_width = 0.7, text_size = 5.5) {
 
-  stopifnot(is_logical(by_arm))
+  stopifnot(is_logical(by_treatment))
   stopifnot(is_logical(percent))
 
   by1 = c(x_col, col)
-  if (by_arm) by1 = c('round_id', 'treatment_id', 'treatment_name', by1)
+  if (by_treatment) by1 = c('round_id', 'treatment_id', 'treatment_name', by1)
   by2 = by1[-length(by1)]
 
-  data_now = data[round_id %in% round_ids, .N, keyby = by1]
+  data_now = data[, .N, keyby = by1]
   if (percent) {
     data_now[, quant_students := N / sum(N), by = by2]
     data_now[, label := paste0(round(100 * quant_students), '%')]
@@ -132,7 +146,7 @@ get_summary_barplot = function(
     data_now[, quant_students := sum(N), by = by2]
   }
 
-  data_now = data_now[z == col_val, env = list(z = col)]
+  data_now = data_now[z == TRUE, env = list(z = col)]
 
   y_lab = paste(if (percent) 'Percentage' else 'Number', 'of students')
   y_scale = if (percent) scales::label_percent() else waiver()
@@ -145,32 +159,45 @@ get_summary_barplot = function(
     scale_fill_manual(values = fill_vals) +
     theme(legend.position = 'none')
 
-  if (by_arm) p = p + facet_wrap(vars(treatment_name))
+  if (by_treatment) p = p + facet_wrap(vars(treatment_name))
   if (percent) {
     p = p + geom_text(aes(label = label), size = text_size, nudge_y = nudge_y)
   }
   p
 }
 
+#' Get detailed barplot for outcomes data
+#'
+#' This function creates a stacked barplot, optionally faceted, of counts or
+#' percentages based on individual-level data.
+#'
+#' @param data `data.table` of individual-level data, e.g., from ConnectEd.
+#' @param col string indicating column in `data` to use for calculating counts
+#'   or percentages.
+#' @param x_col string indicating column in `data` to use for x-axis.
+#' @param by_treatment logical indicating whether to facet by `treatment_name`.
+#' @param percent logical indicating whether to plot percentages or counts.
+#' @param bar_width numeric used by [ggplot2::geom_col()] for width of bars.
+#'
+#' @return `ggplot` object.
 get_detailed_barplot = function(
-    data_long, round_ids, col, x_col = 'time', by_arm = FALSE, percent = TRUE,
+    data, col, x_col = 'time', by_treatment = FALSE, percent = TRUE,
     bar_width = 0.7) {
 
-  stopifnot(is_logical(by_arm))
+  stopifnot(is_logical(by_treatment))
   stopifnot(is_logical(percent))
 
   y_lab = paste(if (percent) 'Percentage' else 'Number', 'of students')
   y_scale = if (percent) scales::label_percent() else waiver()
   position = if (percent) 'fill' else 'stack'
-  data_now = data_long[round_id %in% round_ids]
 
-  p = ggplot(data_now) +
+  p = ggplot(data) +
     geom_bar(
       aes(x = .data[[x_col]], fill = .data[[col]]),
       width = bar_width, position = position) +
     labs(x = '', y = y_lab, fill = 'Level') +
     scale_y_continuous(labels = y_scale) +
     scale_fill_viridis_d(na.value = 'gray')
-  if (by_arm) p = p + facet_wrap(vars(treatment_name))
+  if (by_treatment) p = p + facet_wrap(vars(treatment_name))
   p
 }

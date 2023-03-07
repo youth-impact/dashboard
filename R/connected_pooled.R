@@ -1,16 +1,18 @@
+# connected_pooled module creates and displays ConnectEd pooled results
+
 connected_pooled_ui = function(id) {
   ns = NS(id)
 
   tabPanel(
-    'Pooled Summary Results',
+    title = 'Pooled Summary Results',
     sidebarLayout(
 
       sidebarPanel(
-        uiOutput(ns('ui_input')),
+        uiOutput(ns('ui_input')), # output$ui_input
         width = 2),
 
       mainPanel(
-        plotOutput(ns('plot_all'), height = '800px'),
+        plotOutput(ns('plot_all'), height = '800px'), # output$plot_all
         width = 10)
     )
   )
@@ -19,6 +21,7 @@ connected_pooled_ui = function(id) {
 connected_pooled_server = function(id, data_proc) {
   moduleServer(id, function(input, output, session) {
 
+    # pooled results can include one or more rounds
     output$ui_input = renderUI({
       req(data_proc)
       ns = session$ns
@@ -30,33 +33,32 @@ connected_pooled_server = function(id, data_proc) {
         selected = choices)
     })
 
+    # combined plots for pooled results
     output$plot_all = renderPlot({
-      req(input$round_ids, data_proc)
+      req(data_proc, input$round_ids)
 
-      data = copy(data_proc()$data)
-      data[, time := 'Baseline\nto Endline']
-      data_long = data_proc()$data_long
+      data = data_proc()$data[round_id %in% input$round_ids]
+      data_long = data_proc()$data_long[round_id %in% input$round_ids]
 
       p_add = get_summary_barplot(
-        data_long, input$round_ids, col = 'can_add', col_val = FALSE,
-        title = 'Innumeracy: cannot add', nudge_y = 0.007,
-        fill_vals = c('#a6cee3', '#1f78b4'))
+        data_long, col = 'cannot_add', title = 'Innumeracy: cannot add',
+        nudge_y = 0.007, fill_vals = c('#a6cee3', '#1f78b4'))
 
       p_div = get_summary_barplot(
-        data_long, input$round_ids, col = 'can_divide', col_val = TRUE,
+        data_long, col = 'can_divide',
         title = 'Numeracy: can add,\nsubtract, multiply, and divide',
         nudge_y = 0.02, fill_vals = c('#b2df8a', '#33a02c'))
 
       p_imp = get_summary_barplot(
-        data, input$round_ids, col = 'improved', col_val = TRUE,
-        title = 'Improved: learned\na new operation',
+        data, col = 'improved', title = 'Improved: learned\na new operation',
         nudge_y = 0.04, fill_vals = '#fdbf6f')
 
       p_tot = get_summary_barplot(
-        data_long, input$round_ids, col = 'present', col_val = TRUE,
-        title = 'Totals', nudge_y = 0, fill_vals = c('#cab2d6', '#6a3d9a'),
-        by_arm = FALSE, percent = FALSE)
+        data_long, col = 'present', title = 'Totals', nudge_y = 0,
+        fill_vals = c('#cab2d6', '#6a3d9a'), by_treatment = FALSE,
+        percent = FALSE)
 
+      # use cowplot::plot_grid() to arrange plots
       p_add_div = plot_grid(p_add, p_div, nrow = 1L, align = 'h', axis = 'tblr')
 
       p_imp_tot = plot_grid(

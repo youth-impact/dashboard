@@ -1,6 +1,6 @@
-# create the ui object for the shiny app
-# separated into tabPanels for Reach, ConnectEd, TaRL, Zones, and Status
-# a given program's tabPanel consists of a set of tabPanels for the plots
+# create the ui object for the shiny app.
+# separate tabPanels for Reach, ConnectEd, TaRL, Zones, and Status.
+# each program then has its own set of tabPanels.
 ui = navbarPage(
   theme = bslib::bs_theme(bootswatch = 'cosmo'),
   title = 'Youth Impact',
@@ -37,12 +37,22 @@ ui = navbarPage(
 
 # create the server object for the shiny app
 server = function(input, output, session) {
+  # load raw data from the Google Drive folder
   data_raw = get_data_raw_server('get_data_raw', params$folder_url)
+
+  # process raw data for visualization
   data_proc = get_data_proc_server('get_data_proc', data_raw)
+
+  # create display elements for status of raw data files
   data_status_server('data_status', data_raw)
 
+  # create display elements for ConnectEd pooled results
   connected_pooled_server('connected_pooled', data_proc)
+
+  # create display elements for ConnectEd A/B Summary results
   connected_ab_summary_server('connected_ab_summary', data_proc)
+
+  # create display elements for ConnectEd A/B Detailed results
   connected_ab_detailed_server('connected_ab_detailed', data_proc)
 }
 
