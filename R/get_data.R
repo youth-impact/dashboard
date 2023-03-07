@@ -39,16 +39,16 @@ get_data_raw_server = function(id, folder_url) {
 }
 
 # process raw data for visualization
-get_data_proc_server = function(id, data_raw) {
+get_data_proc_server = function(id, data_raw, conn_keep_missing) {
   moduleServer(id, function(input, output, session) {
 
     data_proc = reactive({
-      req(data_raw)
+      req(data_raw, conn_keep_missing)
 
-      data = data_raw()$connected_data
-      rounds = data_raw()$connected_rounds
-      arms = data_raw()$connected_arms
-      levs = data_raw()$connected_levels
+      data = copy(data_raw()$connected_data)
+      rounds = copy(data_raw()$connected_rounds)
+      arms = copy(data_raw()$connected_arms)
+      levs = copy(data_raw()$connected_levels)
 
       # use factors to ensure proper ordering in plots
       arms[, treatment_name := forcats::fct_reorder(
@@ -56,7 +56,7 @@ get_data_proc_server = function(id, data_raw) {
       levs[, level_name := factor(level_name, level_name)]
 
       # basic renaming and selecting particular columns
-      data = get_clean_connected_data(data) |>
+      data = get_clean_connected_data(data, conn_keep_missing()) |>
         merge(arms, by = c('round', 'treatment'))
 
       # remove unused columns
@@ -77,7 +77,7 @@ get_data_proc_server = function(id, data_raw) {
       data_long[, time := factor(time, meas_vars, c('Baseline', 'Endline'))]
       data_long[, cannot_add := level_id == 0] # tarl innumeracy
       data_long[, can_divide := level_id == 4] # tarl numeracy
-      data_long[, present := !is.na(level_id)] # non-missing
+      # data_long[, present := !is.na(level_id)] # non-missing
 
       # add time column for plotting
       data[, time := 'Baseline\nto Endline']

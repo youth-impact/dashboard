@@ -15,7 +15,8 @@ ui = navbarPage(
     tabsetPanel(
       connected_pooled_ui('connected_pooled'),
       connected_ab_summary_ui('connected_ab_summary'),
-      connected_ab_detailed_ui('connected_ab_detailed')
+      connected_ab_detailed_ui('connected_ab_detailed'),
+      connected_advanced_ui('connected_advanced')
     )
   ),
 
@@ -40,20 +41,25 @@ server = function(input, output, session) {
   # load raw data from the Google Drive folder
   data_raw = get_data_raw_server('get_data_raw', params$folder_url)
 
-  # process raw data for visualization
-  data_proc = get_data_proc_server('get_data_proc', data_raw)
-
   # create display elements for status of raw data files
   data_status_server('data_status', data_raw)
 
+  # set advanced options for displaying ConnectEd results
+  conn_keep_missing = connected_advanced_server('connected_advanced')
+
+  # process raw data for visualization
+  data_proc = get_data_proc_server('get_data_proc', data_raw, conn_keep_missing)
+
   # create display elements for ConnectEd pooled results
-  connected_pooled_server('connected_pooled', data_proc)
+  connected_pooled_server('connected_pooled', data_proc, conn_keep_missing)
 
   # create display elements for ConnectEd A/B Summary results
-  connected_ab_summary_server('connected_ab_summary', data_proc)
+  connected_ab_summary_server(
+    'connected_ab_summary', data_proc, conn_keep_missing)
 
   # create display elements for ConnectEd A/B Detailed results
-  connected_ab_detailed_server('connected_ab_detailed', data_proc)
+  connected_ab_detailed_server(
+    'connected_ab_detailed', data_proc, conn_keep_missing)
 }
 
 # create the shiny app object

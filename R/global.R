@@ -6,12 +6,15 @@ library('ggplot2')
 library('glue')
 library('googledrive')
 library('shiny')
+library('stringr')
 
 # set global ggplot theme
 theme_set(
   theme_bw() +
     theme(
       text = element_text(size = 20),
+      axis.title.y = element_text(size = 18),
+      plot.title = element_text(size = 18),
       axis.text = element_text(color = 'black'),
       legend.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = 'cm')))
 
@@ -54,11 +57,13 @@ get_file_metadata = function(folder_url) {
 #' This function largely renames and reformats selected columns.
 #'
 #' @param data_old `data.table` of ConnectEd data derived from the Stata file.
+#' @param inc_miss Character vector of time-points for which to exclude missing
+#'   data.
 #'
 #' @return `data.table` of clean ConnectEd data.
-get_clean_connected_data = function(data_old) {
+get_clean_connected_data = function(data_old, keep_missing) {
   assert_data_table(data_old)
-  data_new = data_old[, .(
+  data = data_old[, .(
     round = as.integer(round),
     treatment = treatment,
     facilitator_name = as.character(facilitator_i),
@@ -68,8 +73,15 @@ get_clean_connected_data = function(data_old) {
     student_sex_baseline = as.character(forcats::as_factor(stud_sex_bl)),
     region_baseline = forcats::as_factor(region_bl)
   )]
-  data_new[round == 5L & treatment == '', treatment := 'Caregiver Choice']
-  data_new[]
+  data[round == 5L & treatment == '', treatment := 'Caregiver Choice']
+
+  if (!('baseline' %in% keep_missing)) {
+    data = data[!is.na(student_level_baseline)]
+  }
+  if (!('endline' %in% keep_missing)) {
+    data = data[!is.na(student_level_endline)]
+  }
+  data[]
 }
 
 ########################################
@@ -105,6 +117,22 @@ get_choices = function(data, name_col = 'round_name', val_col = 'round_id') {
 get_round_text = function(rounds, round_ids) {
   rounds_now = rounds[round_id == round_ids]
   round_text = glue('Round {rounds_now$round_name}: {rounds_now$round_purpose}')
+}
+
+# TODO: add documentation
+get_counts_by_round = function(data) {
+  counts = data[, .N, keyby = .(round_id, round_name)]
+  counts = rbind(
+    counts[, !'round_id'], data.table(round_name = 'Total', N = sum(counts$N)))
+  counts[, N := scales::label_comma()(N)]
+  setnames(counts, c('round_name', 'N'), c('Round', 'Number of students'))
+}
+
+# TODO: add documentation
+get_counts_by_treatment = function(data) {
+  counts = data[, .N, keyby = .(round_id, round_name, arm_id, treatment_name)]
+  counts[, N := scales::label_comma()(N)]
+  counts[, .(Treatment = treatment_name, `Number of students` = N)]
 }
 
 ########################################
@@ -150,12 +178,12 @@ get_summary_barplot = function(
 
   y_lab = paste(if (percent) 'Percentage' else 'Number', 'of students')
   y_scale = if (percent) scales::label_percent() else waiver()
-  upper_lim = if (uniqueN(data_now[[x_col]]) == 1L) 1 else NA
+  # upper_lim = if (uniqueN(data_now[[x_col]]) == 1L) 1 else NA
 
   p = ggplot(data_now, aes(x = .data[[x_col]], y = quant_students)) +
     geom_col(aes(fill = .data[[x_col]]), width = bar_width) +
     labs(x = '', y = y_lab, title = title) +
-    scale_y_continuous(labels = y_scale, limits = c(0, upper_lim)) +
+    scale_y_continuous(labels = y_scale) +#, limits = c(0, upper_lim)) +
     scale_fill_manual(values = fill_vals) +
     theme(legend.position = 'none')
 

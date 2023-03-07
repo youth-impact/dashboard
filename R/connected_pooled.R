@@ -12,13 +12,15 @@ connected_pooled_ui = function(id) {
         width = 2),
 
       mainPanel(
-        plotOutput(ns('plot_all'), height = '800px'), # output$plot_all
+        br(),
+        plotOutput(ns('plot_all')), # output$plot_all
+        tableOutput(ns('round_students')), # output$round_students
         width = 10)
     )
   )
 }
 
-connected_pooled_server = function(id, data_proc) {
+connected_pooled_server = function(id, data_proc, keep_missing) {
   moduleServer(id, function(input, output, session) {
 
     # pooled results can include one or more rounds
@@ -26,6 +28,7 @@ connected_pooled_server = function(id, data_proc) {
       req(data_proc)
       ns = session$ns
       choices = get_choices(data_proc()$data)
+
       checkboxGroupInput(
         inputId = ns('round_ids'),
         label = 'Round(s)',
@@ -40,33 +43,32 @@ connected_pooled_server = function(id, data_proc) {
       data = data_proc()$data[round_id %in% input$round_ids]
       data_long = data_proc()$data_long[round_id %in% input$round_ids]
 
-      p_add = get_summary_barplot(
-        data_long, col = 'cannot_add', title = 'Innumeracy: cannot add',
-        nudge_y = 0.007, fill_vals = c('#a6cee3', '#1f78b4'))
+      p_imp = get_summary_barplot(
+        data, col = 'improved',
+        title = str_wrap('Improved: learned a new operation', 18),
+        nudge_y = 0.02, fill_vals = '#fdbf6f')
 
       p_div = get_summary_barplot(
         data_long, col = 'can_divide',
-        title = 'Numeracy: can add,\nsubtract, multiply, and divide',
-        nudge_y = 0.02, fill_vals = c('#b2df8a', '#33a02c'))
+        title = str_wrap(
+          'Numeracy: can add, subtract, multiply, and divide', 30),
+        nudge_y = 0.01, fill_vals = c('#b2df8a', '#33a02c'))
 
-      p_imp = get_summary_barplot(
-        data, col = 'improved', title = 'Improved: learned\na new operation',
-        nudge_y = 0.04, fill_vals = '#fdbf6f')
-
-      p_tot = get_summary_barplot(
-        data_long, col = 'present', title = 'Totals', nudge_y = 0,
-        fill_vals = c('#cab2d6', '#6a3d9a'), by_treatment = FALSE,
-        percent = FALSE)
+      p_add = get_summary_barplot(
+        data_long, col = 'cannot_add',
+        title = str_wrap('Innumeracy: cannot add', 30),
+        nudge_y = 0.007, fill_vals = c('#a6cee3', '#1f78b4'))
 
       # use cowplot::plot_grid() to arrange plots
-      p_add_div = plot_grid(p_add, p_div, nrow = 1L, align = 'h', axis = 'tblr')
-
-      p_imp_tot = plot_grid(
-        p_imp, grid::nullGrob(), p_tot, nrow = 1L,
-        align = 'h', axis = 'tb', rel_widths = c(0.7, 0.32, 0.98))
-
-      plot_grid(p_add_div, p_imp_tot, ncol = 1L)
+      plot_grid(
+        p_imp, p_div, p_add, nrow = 1L, align = 'h', axis = 'tb',
+        rel_widths = c(0.7, 1, 1))
     }) |>
-      bindCache(input$round_ids)
+      bindCache(input$round_ids, keep_missing())
+
+    output$round_students = renderTable({
+      req(data_proc, input$round_ids)
+      get_counts_by_round(data_proc()$data[round_id %in% input$round_ids])
+    }, align = 'r')
   })
 }

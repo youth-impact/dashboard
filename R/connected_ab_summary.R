@@ -13,6 +13,7 @@ connected_ab_summary_ui = function(id) {
 
       mainPanel(
         h6(textOutput(ns('round_text'))), # output$round_text
+        tableOutput(ns('treatment_students')), # output$treatment_students
         br(),
         plotOutput(ns('plot_all'), height = '800px'), # output$plot_all
         width = 10)
@@ -20,7 +21,7 @@ connected_ab_summary_ui = function(id) {
   )
 }
 
-connected_ab_summary_server = function(id, data_proc) {
+connected_ab_summary_server = function(id, data_proc, keep_missing) {
   moduleServer(id, function(input, output, session) {
 
     # A/B summary results for a single round
@@ -28,6 +29,7 @@ connected_ab_summary_server = function(id, data_proc) {
       req(data_proc)
       ns = session$ns
       choices = get_choices(data_proc()$data)
+
       radioButtons(
         inputId = ns('round_ids'),
         label = 'Round',
@@ -49,32 +51,35 @@ connected_ab_summary_server = function(id, data_proc) {
       data = data_proc()$data[round_id %in% input$round_ids]
       data_long = data_proc()$data_long[round_id %in% input$round_ids]
 
+      data[, treatment_name := str_wrap(treatment_name, 20)]
+      data_long[, treatment_name := str_wrap(treatment_name, 20)]
+
       p_add = get_summary_barplot(
         data_long, col = 'cannot_add', title = 'Innumeracy', nudge_y = 0.01,
         fill_vals = c('#a6cee3', '#1f78b4'), by_treatment = TRUE)
 
       p_div = get_summary_barplot(
-        data_long, col = 'can_divide', title = 'Numeracy', nudge_y = 0.02,
+        data_long, col = 'can_divide', title = 'Numeracy', nudge_y = 0.01,
         fill_vals = c('#b2df8a', '#33a02c'), by_treatment = TRUE)
 
       p_imp = get_summary_barplot(
-        data, col = 'improved', title = 'Improved', nudge_y = 0.04,
+        data, col = 'improved', title = 'Improved', nudge_y = 0.02,
         fill_vals = '#fdbf6f', by_treatment = TRUE)
 
-      p_tot = get_summary_barplot(
-        data_long, col = 'present', title = 'Totals', nudge_y = 0,
-        fill_vals = c('#cab2d6', '#6a3d9a'), by_treatment = TRUE,
-        percent = FALSE)
-
       # use cowplot::plot_grid() to arrange plots
-      p_add_div = plot_grid(p_add, p_div, nrow = 1L, align = 'h', axis = 'tblr')
+      p_add_div = plot_grid(p_div, p_add, nrow = 1L, align = 'h', axis = 'tblr')
 
-      p_imp_tot = plot_grid(
-        p_imp, grid::nullGrob(), p_tot, nrow = 1L,
-        align = 'h', axis = 'tb', rel_widths = c(0.8, 0.23, 0.97))
+      p_imp_null = plot_grid(
+        p_imp, grid::nullGrob(), nrow = 1L, align = 'h', axis = 'tb',
+        rel_widths = c(1, 1))
 
-      plot_grid(p_add_div, p_imp_tot, ncol = 1L)
+      plot_grid(p_imp_null, p_add_div, ncol = 1L)
     }) |>
-      bindCache(input$round_ids)
+      bindCache(input$round_ids, keep_missing())
+
+    output$treatment_students = renderTable({
+      req(data_proc, input$round_ids)
+      get_counts_by_treatment(data_proc()$data[round_id %in% input$round_ids])
+    }, align = 'lr')
   })
 }
