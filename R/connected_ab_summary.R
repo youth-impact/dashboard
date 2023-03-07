@@ -55,16 +55,16 @@ connected_ab_summary_server = function(id, data_proc, keep_missing) {
       data_long[, treatment_name := str_wrap(treatment_name, 20)]
 
       p_add = get_summary_barplot(
-        data_long, col = 'cannot_add', title = 'Innumeracy', nudge_y = 0.01,
+        data_long, col = 'cannot_add', title = 'Innumeracy',
         fill_vals = c('#a6cee3', '#1f78b4'), by_treatment = TRUE)
 
       p_div = get_summary_barplot(
-        data_long, col = 'can_divide', title = 'Numeracy', nudge_y = 0.01,
+        data_long, col = 'can_divide', title = 'Numeracy',
         fill_vals = c('#b2df8a', '#33a02c'), by_treatment = TRUE)
 
       p_imp = get_summary_barplot(
-        data, col = 'improved', title = 'Improved', nudge_y = 0.02,
-        fill_vals = '#fdbf6f', by_treatment = TRUE)
+        data, col = 'improved', title = 'Improved', fill_vals = '#fdbf6f',
+        by_treatment = TRUE)
 
       # use cowplot::plot_grid() to arrange plots
       p_add_div = plot_grid(p_div, p_add, nrow = 1L, align = 'h', axis = 'tblr')

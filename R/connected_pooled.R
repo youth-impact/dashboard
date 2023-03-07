@@ -46,18 +46,18 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
       p_imp = get_summary_barplot(
         data, col = 'improved',
         title = str_wrap('Improved: learned a new operation', 18),
-        nudge_y = 0.02, fill_vals = '#fdbf6f')
+        fill_vals = '#fdbf6f')
 
       p_div = get_summary_barplot(
         data_long, col = 'can_divide',
         title = str_wrap(
           'Numeracy: can add, subtract, multiply, and divide', 30),
-        nudge_y = 0.01, fill_vals = c('#b2df8a', '#33a02c'))
+        fill_vals = c('#b2df8a', '#33a02c'))
 
       p_add = get_summary_barplot(
         data_long, col = 'cannot_add',
         title = str_wrap('Innumeracy: cannot add', 30),
-        nudge_y = 0.007, fill_vals = c('#a6cee3', '#1f78b4'))
+        fill_vals = c('#a6cee3', '#1f78b4'))
 
       # use cowplot::plot_grid() to arrange plots
       plot_grid(

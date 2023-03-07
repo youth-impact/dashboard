@@ -119,7 +119,12 @@ get_round_text = function(rounds, round_ids) {
   round_text = glue('Round {rounds_now$round_name}: {rounds_now$round_purpose}')
 }
 
-# TODO: add documentation
+#' Get number of students per round
+#'
+#' @param data `data.table` of individual-level data with columns `round_id` and
+#'   `round_name`.
+#'
+#' @return `data.table`
 get_counts_by_round = function(data) {
   counts = data[, .N, keyby = .(round_id, round_name)]
   counts = rbind(
@@ -128,9 +133,14 @@ get_counts_by_round = function(data) {
   setnames(counts, c('round_name', 'N'), c('Round', 'Number of students'))
 }
 
-# TODO: add documentation
+#' Get number of students per treatment
+#'
+#' @param data `data.table` of individual-level data with columns `arm_id` and
+#'   `treatment_name`.
+#'
+#' @return `data.table`
 get_counts_by_treatment = function(data) {
-  counts = data[, .N, keyby = .(round_id, round_name, arm_id, treatment_name)]
+  counts = data[, .N, keyby = .(arm_id, treatment_name)]
   counts[, N := scales::label_comma()(N)]
   counts[, .(Treatment = treatment_name, `Number of students` = N)]
 }
@@ -146,7 +156,6 @@ get_counts_by_treatment = function(data) {
 #' @param col string indicating column in `data` that contains logical values to
 #'   use for calculating counts or percentages.
 #' @param title string indicating title of plot.
-#' @param nudge_y numeric used by [ggplot2::geom_text()] for text above bars.
 #' @param fill_vals character vector indicating fill colors for bars.
 #' @param x_col string indicating column in `data` to use for x-axis.
 #' @param by_treatment logical indicating whether to facet by `treatment_name`.
@@ -156,8 +165,8 @@ get_counts_by_treatment = function(data) {
 #'
 #' @return `ggplot` object.
 get_summary_barplot = function(
-    data, col, title, nudge_y, fill_vals, x_col = 'time',
-    by_treatment = FALSE, percent = TRUE, bar_width = 0.7, text_size = 5.5) {
+    data, col, title, fill_vals, x_col = 'time', by_treatment = FALSE,
+    percent = TRUE, bar_width = 0.7, text_size = 5.5) {
 
   stopifnot(is_logical(by_treatment))
   stopifnot(is_logical(percent))
@@ -178,17 +187,17 @@ get_summary_barplot = function(
 
   y_lab = paste(if (percent) 'Percentage' else 'Number', 'of students')
   y_scale = if (percent) scales::label_percent() else waiver()
-  # upper_lim = if (uniqueN(data_now[[x_col]]) == 1L) 1 else NA
 
   p = ggplot(data_now, aes(x = .data[[x_col]], y = quant_students)) +
     geom_col(aes(fill = .data[[x_col]]), width = bar_width) +
     labs(x = '', y = y_lab, title = title) +
-    scale_y_continuous(labels = y_scale) +#, limits = c(0, upper_lim)) +
+    scale_y_continuous(labels = y_scale) +
     scale_fill_manual(values = fill_vals) +
     theme(legend.position = 'none')
 
   if (by_treatment) p = p + facet_wrap(vars(treatment_name))
   if (percent) {
+    nudge_y = max(data_now$quant_students) * 0.04
     p = p + geom_text(aes(label = label), size = text_size, nudge_y = nudge_y)
   }
   p
