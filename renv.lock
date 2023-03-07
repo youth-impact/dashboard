@@ -804,6 +804,22 @@
       "Hash": "ca8bd84263c77310739d2cf64d84d7c9",
       "Requirements": []
     },
+    "stringr": {
+      "Package": "stringr",
+      "Version": "1.5.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "671a4d384ae9d32fc47a14e98bfa3dc8",
+      "Requirements": [
+        "cli",
+        "glue",
+        "lifecycle",
+        "magrittr",
+        "rlang",
+        "stringi",
+        "vctrs"
+      ]
+    },
     "sys": {
       "Package": "sys",
       "Version": "3.4.1",

@@ -1,4 +1,4 @@
-# Dashboard
+# Shiny Dashboard
 
 ## Overview
 
