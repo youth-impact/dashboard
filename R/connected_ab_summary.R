@@ -12,7 +12,7 @@ connected_ab_summary_ui = function(id) {
         width = 2),
 
       mainPanel(
-        h6(textOutput(ns('round_text'))), # output$round_text
+        uiOutput(ns('round_text')), # output$round_text
         tableOutput(ns('treatment_students')), # output$treatment_students
         br(),
         plotOutput(ns('plot_all'), height = '800px'), # output$plot_all
@@ -32,15 +32,17 @@ connected_ab_summary_server = function(id, data_proc, keep_missing) {
 
       radioButtons(
         inputId = ns('round_ids'),
-        label = 'Round',
+        label = strong('Round'),
         choices = choices,
         selected = tail(choices, n = 1L))
     })
 
     # narrative text for the selected round
-    output$round_text = renderText({
+    output$round_text = renderUI({
       req(data_proc, input$round_ids)
-      get_round_text(data_proc()$rounds, input$round_ids)
+      get_round_text(
+        data_proc()$rounds, data_proc()$arms, data_proc()$treatments,
+        input$round_ids)
     }) |>
       bindCache(input$round_ids)
 

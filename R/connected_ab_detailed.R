@@ -12,7 +12,7 @@ connected_ab_detailed_ui = function(id) {
         width = 3),
 
       mainPanel(
-        h6(textOutput(ns('round_text'))), # output$round_text
+        uiOutput(ns('round_text')), # output$round_text
         tableOutput(ns('treatment_students')), # output$treatment_students
         br(),
         plotOutput(ns('plot_all'), width = '90%'), # output$plot_all
@@ -34,20 +34,22 @@ connected_ab_detailed_server = function(id, data_proc, keep_missing) {
       tagList(
         radioButtons(
           inputId = ns('round_ids'),
-          label = 'Round',
+          label = strong('Round'),
           choices = choices,
           selected = tail(choices, n = 1L)),
         radioButtons(
           inputId = ns('y_display'),
-          label = 'Display as',
+          label = strong('Display as'),
           choices = c('percentage', 'count'))
       )
     })
 
     # narrative text for the selected round
-    output$round_text = renderText({
+    output$round_text = renderUI({
       req(data_proc, input$round_ids)
-      get_round_text(data_proc()$rounds, input$round_ids)
+      get_round_text(
+        data_proc()$rounds, data_proc()$arms, data_proc()$treatments,
+        input$round_ids)
     }) |>
       bindCache(input$round_ids)
 

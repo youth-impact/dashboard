@@ -108,15 +108,35 @@ get_choices = function(data, name_col = 'round_name', val_col = 'round_id') {
   choices
 }
 
-#' Get narrative text describing a ConnectEd round
+#' Get narrative text describing a round of ConnectEd
 #'
-#' @param rounds `data.table` containing round metadata.
-#' @param round_ids single value for which to create text.
+#' @param rounds `data.table` containing metadata for rounds.
+#' @param arms `data.table` containing metadata for arms.
+#' @param treatments `data.table` containing metadata for treatments.
+#' @param round_id_now single value indicating current round.
 #'
-#' @return A string or something like it.
-get_round_text = function(rounds, round_ids) {
-  rounds_now = rounds[round_id == round_ids]
-  round_text = glue('Round {rounds_now$round_name}: {rounds_now$round_purpose}')
+#' @return A list of HTML tags from [htmltools::tagList()].
+get_round_text = function(rounds, arms, treatments, round_id_now) {
+  round_now = rounds[round_id == round_id_now]
+  header_text = h4(paste('Round', round_now$round_name))
+  purpose_text = p(strong('Purpose: '), round_now$round_purpose)
+  outcome_text = p(strong('Outcome: '), round_now$round_outcome)
+
+  treatments_now = merge(
+    treatments, arms[round_id == round_id_now],
+    by = c('treatment_id', 'treatment_name'))
+  setorder(treatments_now, arm_id)
+
+  treatment_text = lapply(seq_len(nrow(treatments_now)), \(i) {
+    p(strong(paste0(treatments_now$treatment_name[i], ': ')),
+      treatments_now$treatment_description[i])
+  })
+
+  round_text = c(
+    list(header_text, purpose_text, outcome_text, h5('Treatments')),
+    treatment_text)
+  class(round_text) = c('shiny.tag.list', 'list')
+  round_text
 }
 
 #' Get number of students per round

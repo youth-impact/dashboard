@@ -31,7 +31,7 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
 
       checkboxGroupInput(
         inputId = ns('round_ids'),
-        label = 'Round(s)',
+        label = strong('Round(s)'),
         choices = choices,
         selected = choices)
     })

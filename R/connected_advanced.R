@@ -27,7 +27,7 @@ connected_advanced_server = function(id) {
       ns = session$ns
       checkboxGroupInput(
         inputId = ns('keep_missing'),
-        label = 'Include students',
+        label = strong('Include students'),
         choices = list(
           'missing at baseline' = 'baseline',
           'missing at endline' = 'endline'),

@@ -48,6 +48,7 @@ get_data_proc_server = function(id, data_raw, conn_keep_missing) {
       data = copy(data_raw()$connected_data)
       rounds = copy(data_raw()$connected_rounds)
       arms = copy(data_raw()$connected_arms)
+      treatments = copy(data_raw()$connected_treatments)
       levs = copy(data_raw()$connected_levels)
 
       # use factors to ensure proper ordering in plots
@@ -77,13 +78,12 @@ get_data_proc_server = function(id, data_raw, conn_keep_missing) {
       data_long[, time := factor(time, meas_vars, c('Baseline', 'Endline'))]
       data_long[, cannot_add := level_id == 0] # tarl innumeracy
       data_long[, can_divide := level_id == 4] # tarl numeracy
-      # data_long[, present := !is.na(level_id)] # non-missing
 
       # add time column for plotting
       data[, time := 'Baseline\nto Endline']
 
-      list(data = data, data_long = data_long,
-           rounds = rounds, arms = arms, levs = levs)
+      list(data = data, data_long = data_long, rounds = rounds,
+           treatments = treatments, arms = arms, levs = levs)
     })
   })
 }
