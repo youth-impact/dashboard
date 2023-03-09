@@ -108,35 +108,52 @@ get_choices = function(data, name_col = 'round_name', val_col = 'round_id') {
   choices
 }
 
+#' Get header for a round of ConnectEd
+#'
+#' @param rounds `data.table` containing metadata for rounds.
+#' @param round_id_now single value indicating current round.
+#'
+#' @return HTML tags.
+get_round_header = function(rounds, round_id_now) {
+  round_now = rounds[round_id == round_id_now]
+  round_header = h4(paste('Round', round_now$round_name))
+}
+
 #' Get narrative text describing a round of ConnectEd
 #'
 #' @param rounds `data.table` containing metadata for rounds.
 #' @param arms `data.table` containing metadata for arms.
 #' @param treatments `data.table` containing metadata for treatments.
+#' @param data `data.table` containing individual-level data.
 #' @param round_id_now single value indicating current round.
 #'
-#' @return A list of HTML tags from [htmltools::tagList()].
-get_round_text = function(rounds, arms, treatments, round_id_now) {
+#' @return HTML tags.
+get_round_text = function(rounds, arms, treatments, data, round_id_now) {
   round_now = rounds[round_id == round_id_now]
-  header_text = h4(paste('Round', round_now$round_name))
-  purpose_text = p(strong('Purpose: '), round_now$round_purpose)
-  outcome_text = p(strong('Outcome: '), round_now$round_outcome)
+  data_now = data[round_id == round_id_now, .N, keyby = treatment_id]
+
+  overview_text = p(
+    strong('Purpose: '), round_now$round_purpose, br(),
+    strong('Conclusion: '), round_now$round_conclusion)
 
   treatments_now = merge(
     treatments, arms[round_id == round_id_now],
-    by = c('treatment_id', 'treatment_name'))
+    by = c('treatment_id', 'treatment_name')) |>
+    merge(data_now, by = 'treatment_id')
   setorder(treatments_now, arm_id)
 
   treatment_text = lapply(seq_len(nrow(treatments_now)), \(i) {
-    p(strong(paste0(treatments_now$treatment_name[i], ': ')),
-      treatments_now$treatment_description[i])
+    r = treatments_now[i]
+    list(
+      strong(r$treatment_name), '(',
+      em(glue('{r$N} students'), .noWS = 'outside'),
+      paste('):', r$treatment_description),
+      br())
   })
 
-  round_text = c(
-    list(header_text, purpose_text, outcome_text, h5('Treatments')),
-    treatment_text)
-  class(round_text) = c('shiny.tag.list', 'list')
-  round_text
+  round_text = tagList(
+    overview_text, h5('Treatments'),
+    unlist(treatment_text, recursive = FALSE), br())
 }
 
 #' Get number of students per round
@@ -150,7 +167,7 @@ get_counts_by_round = function(data) {
   counts = rbind(
     counts[, !'round_id'], data.table(round_name = 'Total', N = sum(counts$N)))
   counts[, N := scales::label_comma()(N)]
-  setnames(counts, c('round_name', 'N'), c('Round', 'Number of students'))
+  setnames(counts, c('round_name', 'N'), c('Round', 'Students'))
 }
 
 #' Get number of students per treatment
@@ -159,11 +176,11 @@ get_counts_by_round = function(data) {
 #'   `treatment_name`.
 #'
 #' @return `data.table`
-get_counts_by_treatment = function(data) {
-  counts = data[, .N, keyby = .(arm_id, treatment_name)]
-  counts[, N := scales::label_comma()(N)]
-  counts[, .(Treatment = treatment_name, `Number of students` = N)]
-}
+# get_counts_by_treatment = function(data) {
+#   counts = data[, .N, keyby = .(arm_id, treatment_name)]
+#   counts[, N := scales::label_comma()(N)]
+#   counts[, .(Treatment = treatment_name, `Number of students` = N)]
+# }
 
 ########################################
 
@@ -175,8 +192,8 @@ get_counts_by_treatment = function(data) {
 #' @param data `data.table` of individual-level data, e.g., from ConnectEd.
 #' @param col string indicating column in `data` that contains logical values to
 #'   use for calculating counts or percentages.
-#' @param title string indicating title of plot.
 #' @param fill_vals character vector indicating fill colors for bars.
+#' @param title string indicating title of plot.
 #' @param x_col string indicating column in `data` to use for x-axis.
 #' @param by_treatment logical indicating whether to facet by `treatment_name`.
 #' @param percent logical indicating whether to plot percentages or counts.
@@ -185,7 +202,7 @@ get_counts_by_treatment = function(data) {
 #'
 #' @return `ggplot` object.
 get_summary_barplot = function(
-    data, col, title, fill_vals, x_col = 'time', by_treatment = FALSE,
+    data, col, fill_vals, title, x_col = 'time', by_treatment = FALSE,
     percent = TRUE, bar_width = 0.7, text_size = 5.5) {
 
   stopifnot(is_logical(by_treatment))

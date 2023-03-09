@@ -44,20 +44,19 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
       data_long = data_proc()$data_long[round_id %in% input$round_ids]
 
       p_imp = get_summary_barplot(
-        data, col = 'improved',
-        title = str_wrap('Improved: learned a new operation', 18),
-        fill_vals = '#fdbf6f')
+        data, col = 'improved', fill_vals = '#fdbf6f',
+        title = str_wrap('Improved: learned a new operation', 18))
 
       p_div = get_summary_barplot(
-        data_long, col = 'can_divide',
+        data_long, col = 'can_divide', fill_vals = c('#b2df8a', '#33a02c'),
         title = str_wrap(
-          'Numeracy: can add, subtract, multiply, and divide', 30),
-        fill_vals = c('#b2df8a', '#33a02c'))
+          'Numeracy: can add, subtract, multiply, and divide', 30)) +
+        theme(axis.title.y = element_blank())
 
       p_add = get_summary_barplot(
-        data_long, col = 'cannot_add',
-        title = str_wrap('Innumeracy: cannot add', 30),
-        fill_vals = c('#a6cee3', '#1f78b4'))
+        data_long, col = 'cannot_add', fill_vals = c('#a6cee3', '#1f78b4'),
+        title = str_wrap('Innumeracy: cannot add', 30)) +
+        theme(axis.title.y = element_blank())
 
       # use cowplot::plot_grid() to arrange plots
       plot_grid(

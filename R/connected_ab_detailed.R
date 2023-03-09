@@ -9,14 +9,13 @@ connected_ab_detailed_ui = function(id) {
 
       sidebarPanel(
         uiOutput(ns('ui_input')), # output$ui_input
-        width = 3),
+        width = 2),
 
       mainPanel(
-        uiOutput(ns('round_text')), # output$round_text
-        tableOutput(ns('treatment_students')), # output$treatment_students
-        br(),
-        plotOutput(ns('plot_all'), width = '90%'), # output$plot_all
-        width = 9)
+        uiOutput(ns('round_header')),
+        uiOutput(ns('round_text')),
+        plotOutput(ns('plot_all'), width = '80%'), # output$plot_all
+        width = 10)
     )
   )
 }
@@ -40,18 +39,27 @@ connected_ab_detailed_server = function(id, data_proc, keep_missing) {
         radioButtons(
           inputId = ns('y_display'),
           label = strong('Display as'),
-          choices = c('percentage', 'count'))
+          choices = c('percentage', 'count')),
+        checkboxInput(
+          inputId = ns('show_details'),
+          label = 'Show details')
       )
+    })
+
+    output$round_header = renderUI({
+      req(data_proc, input$round_ids)
+      get_round_header(data_proc()$rounds, input$round_ids)
     })
 
     # narrative text for the selected round
     output$round_text = renderUI({
       req(data_proc, input$round_ids)
-      get_round_text(
-        data_proc()$rounds, data_proc()$arms, data_proc()$treatments,
-        input$round_ids)
-    }) |>
-      bindCache(input$round_ids)
+      if (isTRUE(input$show_details)) {
+        get_round_text(
+          data_proc()$rounds, data_proc()$arms, data_proc()$treatments,
+          data_proc()$data, input$round_ids)
+      }
+    })
 
     # plot for A/B detailed results
     output$plot_all = renderPlot({
@@ -66,9 +74,5 @@ connected_ab_detailed_server = function(id, data_proc, keep_missing) {
     }) |>
       bindCache(input$round_ids, input$y_display, keep_missing())
 
-    output$treatment_students = renderTable({
-      req(data_proc, input$round_ids)
-      get_counts_by_treatment(data_proc()$data[round_id %in% input$round_ids])
-    }, align = 'lr')
   })
 }
