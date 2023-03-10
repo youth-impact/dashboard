@@ -21,7 +21,7 @@ connected_advanced_server = function(id) {
   moduleServer(id, function(input, output, session) {
 
     counter = reactiveVal(0)
-    default = c('baseline', 'endline')
+    default = c()
 
     output$ui_input = renderUI({
       ns = session$ns

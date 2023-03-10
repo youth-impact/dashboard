@@ -28,7 +28,7 @@ connected_ab_detailed_server = function(id, data_proc, keep_missing) {
     output$ui_input = renderUI({
       req(data_proc)
       ns = session$ns
-      choices = get_choices(data_proc()$data)
+      choices = get_choices(data_proc()$rounds)
 
       tagList(
         radioButtons(
@@ -73,6 +73,5 @@ connected_ab_detailed_server = function(id, data_proc, keep_missing) {
         percent = startsWith(input$y_display, 'percent'))
     }) |>
       bindCache(input$round_ids, input$y_display, keep_missing())
-
   })
 }

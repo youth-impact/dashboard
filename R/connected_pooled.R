@@ -27,11 +27,11 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
     output$ui_input = renderUI({
       req(data_proc)
       ns = session$ns
-      choices = get_choices(data_proc()$data)
+      choices = get_choices(data_proc()$rounds)
 
       checkboxGroupInput(
         inputId = ns('round_ids'),
-        label = strong('Round(s)'),
+        label = strong('Round'),
         choices = choices,
         selected = choices)
     })

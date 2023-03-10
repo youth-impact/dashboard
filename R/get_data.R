@@ -51,6 +51,9 @@ get_data_proc_server = function(id, data_raw, conn_keep_missing) {
       treatments = copy(data_raw()$connected_treatments)
       levs = copy(data_raw()$connected_levels)
 
+      rounds[, label := glue(
+        '{round_name} ({year}, Term {term})', .envir = .SD)]
+
       # use factors to ensure proper ordering in plots
       arms[, treatment_name := forcats::fct_reorder(
         treatment_name, treatment_id, .fun = \(x) x[1L])]
@@ -80,7 +83,7 @@ get_data_proc_server = function(id, data_raw, conn_keep_missing) {
       data_long[, can_divide := level_id == 4] # tarl numeracy
 
       # add time column for plotting
-      data[, time := 'Baseline\nto Endline']
+      data[, time := 'Baseline to Endline']
 
       list(data = data, data_long = data_long, rounds = rounds,
            treatments = treatments, arms = arms, levs = levs)

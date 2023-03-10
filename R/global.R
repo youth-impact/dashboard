@@ -12,9 +12,9 @@ library('stringr')
 theme_set(
   theme_bw() +
     theme(
-      text = element_text(size = 20),
-      axis.title.y = element_text(size = 18),
-      plot.title = element_text(size = 18),
+      text = element_text(size = 21),
+      axis.title.y = element_text(size = 19),
+      plot.title = element_text(size = 19),
       axis.text = element_text(color = 'black'),
       legend.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = 'cm')))
 
@@ -91,20 +91,20 @@ get_clean_connected_data = function(data_old, keep_missing) {
 #' This function finds unique rows of a `data.table` to use as choices for UI
 #' input, such as [shiny::radioButtons()] or [shiny::checkboxGroupInput()].
 #'
-#' @param data `data.table` that has columns corresponding to `name_col` and
+#' @param d `data.table` that has columns corresponding to `name_col` and
 #'   `val_col`.
 #' @param name_col String indicating column to use for names.
 #' @param val_col String indicating column to use for values.
 #'
 #' @return Named list, where names will be displayed to the user and values will
 #'   be used within the app.
-get_choices = function(data, name_col = 'round_name', val_col = 'round_id') {
-  assert_data_table(data)
-  assert_subset(c(name_col, val_col), colnames(data))
-  data_unique = unique(data[, c(..name_col, ..val_col)])
-  setorderv(data_unique, val_col)
-  choices = as.list(data_unique[[val_col]])
-  names(choices) = data_unique[[name_col]]
+get_choices = function(d, name_col = 'label', val_col = 'round_id') {
+  assert_data_table(d)
+  assert_subset(c(name_col, val_col), colnames(d))
+  d_unique = unique(d[, c(..name_col, ..val_col)])
+  setorderv(d_unique, val_col)
+  choices = as.list(d_unique[[val_col]])
+  names(choices) = d_unique[[name_col]]
   choices
 }
 
@@ -116,7 +116,7 @@ get_choices = function(data, name_col = 'round_name', val_col = 'round_id') {
 #' @return HTML tags.
 get_round_header = function(rounds, round_id_now) {
   round_now = rounds[round_id == round_id_now]
-  round_header = h4(paste('Round', round_now$round_name))
+  round_header = h4(paste('Round', round_now$label))
 }
 
 #' Get narrative text describing a round of ConnectEd
@@ -133,8 +133,8 @@ get_round_text = function(rounds, arms, treatments, data, round_id_now) {
   data_now = data[round_id == round_id_now, .N, keyby = treatment_id]
 
   overview_text = p(
-    strong('Purpose: '), round_now$round_purpose, br(),
-    strong('Conclusion: '), round_now$round_conclusion)
+    strong('Purpose: '), round_now$purpose, br(),
+    strong('Conclusion: '), round_now$conclusion)
 
   treatments_now = merge(
     treatments, arms[round_id == round_id_now],
@@ -153,7 +153,11 @@ get_round_text = function(rounds, arms, treatments, data, round_id_now) {
 
   round_text = tagList(
     overview_text, h5('Treatments'),
-    unlist(treatment_text, recursive = FALSE), br())
+    unlist(treatment_text, recursive = FALSE),
+    em(paste(
+      'By default, results only include students',
+      'ascertained at baseline and endline.')),
+    br(), br())
 }
 
 #' Get number of students per round
