@@ -1,65 +1,77 @@
+# connected_ab_detailed module creates and displays ConnectEd A/B detailed results
+
 connected_ab_detailed_ui = function(id) {
   ns = NS(id)
 
   tabPanel(
-    'A/B Detailed Results',
+    title = 'A/B Detailed Results',
     sidebarLayout(
 
       sidebarPanel(
-        uiOutput(ns('ui_input')),
+        uiOutput(ns('ui_input')), # output$ui_input
         width = 2),
 
       mainPanel(
-        h6(textOutput(ns('round_text'))),
-        br(),
-        plotOutput(ns('plot_all'), width = '70%'),
+        uiOutput(ns('round_header')),
+        uiOutput(ns('round_text')),
+        plotOutput(ns('plot_all'), width = '80%'), # output$plot_all
         width = 10)
     )
   )
 }
 
-connected_ab_detailed_server = function(id, data_proc) {
+connected_ab_detailed_server = function(id, data_proc, keep_missing) {
   moduleServer(id, function(input, output, session) {
 
-    rounds_avail = reactive({
-      req(data_proc)
-      sort(unique(data_proc()$data$round_id))
-    })
-
+    # A/B detailed results for a single round
+    # option to show stacked barplot as percentages or counts
     output$ui_input = renderUI({
-      req(rounds_avail)
+      req(data_proc)
       ns = session$ns
+      choices = get_choices(data_proc()$rounds)
+
       tagList(
         radioButtons(
           inputId = ns('round_ids'),
-          label = 'Round',
-          choices = rounds_avail(),
-          selected = max(rounds_avail())),
+          label = strong('Round'),
+          choices = choices,
+          selected = tail(choices, n = 1L)),
         radioButtons(
           inputId = ns('y_display'),
-          label = 'Display as',
-          choices = c('percentage', 'count'))
+          label = strong('Display as'),
+          choices = c('percentage', 'count')),
+        checkboxInput(
+          inputId = ns('show_details'),
+          label = 'Show details')
       )
     })
 
-    output$round_text = renderText({
-      req(input$round_ids, data_proc)
-      rounds_now = data_proc()$rounds[round_id == input$round_ids]
-      glue('Round {rounds_now$round_id}: {rounds_now$round_desc}')
-    }) |>
-      bindCache(input$round_ids)
+    output$round_header = renderUI({
+      req(data_proc, input$round_ids)
+      get_round_header(data_proc()$rounds, input$round_ids)
+    })
 
+    # narrative text for the selected round
+    output$round_text = renderUI({
+      req(data_proc, input$round_ids)
+      if (isTRUE(input$show_details)) {
+        get_round_text(
+          data_proc()$rounds, data_proc()$arms, data_proc()$treatments,
+          data_proc()$data, input$round_ids)
+      }
+    })
+
+    # plot for A/B detailed results
     output$plot_all = renderPlot({
-      req(input$round_ids, input$y_display, data_proc)
+      req(data_proc, input$round_ids, input$y_display)
 
-      data_long = copy(data_proc()$data_long)
-      data_long[, time := factor(
-        time, c('Sensitization', 'Endline'), c('Sens.', 'Endline'))]
+      data_long = data_proc()$data_long[round_id %in% input$round_ids]
+      data_long[, treatment_name := str_wrap(treatment_name, 20)]
 
       get_detailed_barplot(
-        data_long, input$round_ids, col = 'level_name', by_arm = TRUE,
+        data_long, col = 'level_name', by_treatment = TRUE,
         percent = startsWith(input$y_display, 'percent'))
     }) |>
-      bindCache(input$round_ids, input$y_display)
+      bindCache(input$round_ids, input$y_display, keep_missing())
   })
 }

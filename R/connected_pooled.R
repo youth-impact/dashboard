@@ -1,74 +1,73 @@
+# connected_pooled module creates and displays ConnectEd pooled results
+
 connected_pooled_ui = function(id) {
   ns = NS(id)
 
   tabPanel(
-    'Pooled Summary Results',
+    title = 'Pooled Summary Results',
     sidebarLayout(
 
       sidebarPanel(
-        uiOutput(ns('ui_input')),
+        uiOutput(ns('ui_input')), # output$ui_input
         width = 2),
 
       mainPanel(
-        plotOutput(ns('plot_all'), height = '800px'),
+        br(),
+        plotOutput(ns('plot_all')), # output$plot_all
+        tableOutput(ns('round_students')), # output$round_students
         width = 10)
     )
   )
 }
 
-connected_pooled_server = function(id, data_proc) {
+connected_pooled_server = function(id, data_proc, keep_missing) {
   moduleServer(id, function(input, output, session) {
 
-    rounds_avail = reactive({
-      req(data_proc)
-      sort(unique(data_proc()$data$round_id))
-    })
-
+    # pooled results can include one or more rounds
     output$ui_input = renderUI({
-      req(rounds_avail)
+      req(data_proc)
       ns = session$ns
+      choices = get_choices(data_proc()$rounds)
+
       checkboxGroupInput(
         inputId = ns('round_ids'),
-        label = 'Round(s)',
-        choices = rounds_avail(),
-        selected = rounds_avail())
+        label = strong('Round'),
+        choices = choices,
+        selected = choices)
     })
 
+    # combined plots for pooled results
     output$plot_all = renderPlot({
-      req(input$round_ids, data_proc)
+      req(data_proc, input$round_ids)
 
-      data = copy(data_proc()$data)
-      data[, time := 'Sensitization\nto Endline']
-      data_long = data_proc()$data_long
-
-      p_add = get_summary_barplot(
-        data_long, input$round_ids, col = 'can_add', col_val = FALSE,
-        title = 'Innumeracy: cannot add', nudge_y = 0.007,
-        fill_vals = c('#a6cee3', '#1f78b4'))
-
-      p_div = get_summary_barplot(
-        data_long, input$round_ids, col = 'can_divide', col_val = TRUE,
-        title = 'Numeracy: can add,\nsubtract, multiply, and divide',
-        nudge_y = 0.02, fill_vals = c('#b2df8a', '#33a02c'))
+      data = data_proc()$data[round_id %in% input$round_ids]
+      data_long = data_proc()$data_long[round_id %in% input$round_ids]
 
       p_imp = get_summary_barplot(
-        data, input$round_ids, col = 'improved', col_val = TRUE,
-        title = 'Improved: learned\na new operation',
-        nudge_y = 0.04, fill_vals = '#fdbf6f')
+        data, col = 'improved', fill_vals = '#fdbf6f',
+        title = str_wrap('Improved: learned a new operation', 18))
 
-      p_tot = get_summary_barplot(
-        data_long, input$round_ids, col = 'present', col_val = TRUE,
-        title = 'Totals', nudge_y = 0, fill_vals = c('#cab2d6', '#6a3d9a'),
-        by_arm = FALSE, percent = FALSE)
+      p_div = get_summary_barplot(
+        data_long, col = 'can_divide', fill_vals = c('#b2df8a', '#33a02c'),
+        title = str_wrap(
+          'Numeracy: can add, subtract, multiply, and divide', 30)) +
+        theme(axis.title.y = element_blank())
 
-      p_add_div = plot_grid(p_add, p_div, nrow = 1L, align = 'h', axis = 'tblr')
+      p_add = get_summary_barplot(
+        data_long, col = 'cannot_add', fill_vals = c('#a6cee3', '#1f78b4'),
+        title = str_wrap('Innumeracy: cannot add', 30)) +
+        theme(axis.title.y = element_blank())
 
-      p_imp_tot = plot_grid(
-        p_imp, grid::nullGrob(), p_tot, nrow = 1L,
-        align = 'h', axis = 'tb', rel_widths = c(0.7, 0.32, 0.98))
-
-      plot_grid(p_add_div, p_imp_tot, ncol = 1L)
+      # use cowplot::plot_grid() to arrange plots
+      plot_grid(
+        p_imp, p_div, p_add, nrow = 1L, align = 'h', axis = 'tb',
+        rel_widths = c(0.7, 1, 1))
     }) |>
-      bindCache(input$round_ids)
+      bindCache(input$round_ids, keep_missing())
+
+    output$round_students = renderTable({
+      req(data_proc, input$round_ids)
+      get_counts_by_round(data_proc()$data[round_id %in% input$round_ids])
+    }, align = 'r')
   })
 }
