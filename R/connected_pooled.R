@@ -13,11 +13,11 @@ connected_pooled_ui = function(id) {
 
       mainPanel(
         br(),
-        plotlyOutput(ns('plot_numeracy'), width = '70%'),
+        plotlyOutput(ns('plot_numeracy'), width = '80%'),
         br(),
-        plotlyOutput(ns('plot_innumeracy'), width = '70%'),
+        plotlyOutput(ns('plot_innumeracy'), width = '80%'),
         br(),
-        plotlyOutput(ns('plot_improved'), width = '57%'),
+        plotlyOutput(ns('plot_improved'), width = '65%'),
         # plotOutput(ns('plot_all'), width = '80%'), # output$plot_all
         # tableOutput(ns('round_students')), # output$round_students
         width = 10)
@@ -47,6 +47,9 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
     })
 
     # https://meyerweb.com/eric/tools/color-blend/#:::hex
+    sz = 4
+    wd = 0.7
+    shp = c(24, 25)
 
     output$plot_numeracy = renderPlotly({
       req(data_overall)
@@ -55,15 +58,16 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
         aes(x = factor(round_name), group = arm_id, text = label)) +
         geom_linerange(
           aes(ymin = pct_div_Baseline, ymax = pct_div_Endline),
-          position = position_dodge(width = 0.7), color = '#73C05B',
+          position = position_dodge(width = wd), color = '#73C05B',
           linetype = 'dashed', data = data_overall()$wide) +
         geom_point(
-          aes(y = pct_div, color = timepoint),
-          position = position_dodge(width = 0.7), size = 4) +
-        labs(x = 'Round', y = 'Percentage of students', color = '',
+          aes(y = pct_div, fill = Timepoint, shape = Timepoint),
+          position = position_dodge(width = wd), size = sz, stroke = 0) +
+        labs(x = 'Round', y = 'Percentage of students',
              title = 'Numeracy: can add, subtract, multiply, and divide') +
         scale_y_continuous(labels = scales::label_percent()) +
-        scale_color_manual(values = c('#b2df8a', '#33a02c'))
+        scale_fill_manual(values = c('#b2df8a', '#33a02c')) +
+        scale_shape_manual(values = shp)
       ggplotly(p)
     }) |>
       bindCache(input$round_ids, keep_missing())
@@ -75,15 +79,16 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
         aes(x = factor(round_name), group = arm_id, text = label)) +
         geom_linerange(
           aes(ymin = pct_noadd_Baseline, ymax = pct_noadd_Endline),
-          position = position_dodge(width = 0.7), color = '#63A3CC',
+          position = position_dodge(width = wd), color = '#63A3CC',
           linetype = 'dashed', data = data_overall()$wide) +
         geom_point(
-          aes(y = pct_noadd, color = timepoint),
-          position = position_dodge(width = 0.7), size = 4) +
-        labs(x = 'Round', y = 'Percentage of students', color = '',
+          aes(y = pct_noadd, fill = Timepoint, shape = Timepoint),
+          position = position_dodge(width = wd), size = sz, stroke = 0) +
+        labs(x = 'Round', y = 'Percentage of students',
              title = 'Innumeracy: cannot add') +
         scale_y_continuous(labels = scales::label_percent()) +
-        scale_color_manual(values = c('#a6cee3', '#1f78b4'))
+        scale_fill_manual(values = c('#a6cee3', '#1f78b4')) +
+        scale_shape_manual(values = shp)
       ggplotly(p)
     }) |>
       bindCache(input$round_ids, keep_missing())
@@ -94,8 +99,8 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
         data_overall()$wide,
         aes(x = factor(round_name), group = arm_id, text = label)) +
         geom_point(
-          aes(y = pct_improved), position = position_dodge(width = 0.7),
-          color = '#fdbf6f', size = 4) +
+          aes(y = pct_improved), position = position_dodge(width = wd),
+          color = '#fdbf6f', size = sz) +
         labs(x = 'Round', y = 'Percentage of students',
              title = 'Improved: learned a new operation') +
         scale_y_continuous(labels = scales::label_percent())

@@ -117,12 +117,13 @@ get_data_connected_overall = function(data_proc, round_ids) {
       n_total = .N),
     keyby = .(round_id, round_name, arm_id, treatment_name, timepoint)]
 
+  setnames(d1, 'timepoint', 'Timepoint')
   d1[, pct_noadd := n_noadd / n_total]
   d1[, pct_div := n_div / n_total]
   d1[, label := paste('Intervention:', treatment_name)]
 
   d2 = dcast(
-    d1, round_name + arm_id + label ~ timepoint,
+    d1, round_name + arm_id + label ~ Timepoint,
     value.var = c('pct_div', 'pct_noadd'))
 
   d2 = copy(data_proc$data_wide)[
