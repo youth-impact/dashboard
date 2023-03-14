@@ -4,7 +4,7 @@ connected_pooled_ui = function(id) {
   ns = NS(id)
 
   tabPanel(
-    title = 'Pooled Summary Results',
+    title = 'Overall Results',
     sidebarLayout(
 
       sidebarPanel(
@@ -13,8 +13,13 @@ connected_pooled_ui = function(id) {
 
       mainPanel(
         br(),
-        plotOutput(ns('plot_all')), # output$plot_all
-        tableOutput(ns('round_students')), # output$round_students
+        plotlyOutput(ns('plot_numeracy'), width = '70%'),
+        br(),
+        plotlyOutput(ns('plot_innumeracy'), width = '70%'),
+        br(),
+        plotlyOutput(ns('plot_improved'), width = '57%'),
+        # plotOutput(ns('plot_all'), width = '80%'), # output$plot_all
+        # tableOutput(ns('round_students')), # output$round_students
         width = 10)
     )
   )
@@ -36,38 +41,100 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
         selected = choices)
     })
 
-    # combined plots for pooled results
-    output$plot_all = renderPlot({
-      req(data_proc, input$round_ids)
+    data_overall = reactive({
+      req(data_proc)
+      get_data_connected_overall(data_proc())
+    })
 
-      data = data_proc()$data[round_id %in% input$round_ids]
-      data_long = data_proc()$data_long[round_id %in% input$round_ids]
+    # https://meyerweb.com/eric/tools/color-blend/#:::hex
 
-      p_imp = get_summary_barplot(
-        data, col = 'improved', fill_vals = '#fdbf6f',
-        title = str_wrap('Improved: learned a new operation', 18))
-
-      p_div = get_summary_barplot(
-        data_long, col = 'can_divide', fill_vals = c('#b2df8a', '#33a02c'),
-        title = str_wrap(
-          'Numeracy: can add, subtract, multiply, and divide', 30)) +
-        theme(axis.title.y = element_blank())
-
-      p_add = get_summary_barplot(
-        data_long, col = 'cannot_add', fill_vals = c('#a6cee3', '#1f78b4'),
-        title = str_wrap('Innumeracy: cannot add', 30)) +
-        theme(axis.title.y = element_blank())
-
-      # use cowplot::plot_grid() to arrange plots
-      plot_grid(
-        p_imp, p_div, p_add, nrow = 1L, align = 'h', axis = 'tb',
-        rel_widths = c(0.7, 1, 1))
+    output$plot_numeracy = renderPlotly({
+      req(data_overall, input$round_ids)
+      p = ggplot(
+        data_overall()$long, aes(x = round_name, group = arm_id, text = label)) +
+        geom_linerange(
+          aes(ymin = pct_div_Baseline, ymax = pct_div_Endline),
+          position = position_dodge(width = 0.7), color = '#73C05B',
+          linetype = 'dashed', data = data_overall()$wide) +
+        geom_point(
+          aes(y = pct_div, color = timepoint),
+          position = position_dodge(width = 0.7), size = 4) +
+        labs(x = 'Round', y = 'Percentage of students', color = '',
+             title = 'Numeracy: can add, subtract, multiply, and divide') +
+        scale_x_continuous(breaks = unique(d2$round_name)) +
+        scale_y_continuous(labels = scales::label_percent()) +
+        scale_color_manual(values = c('#b2df8a', '#33a02c'))
+      ggplotly(p)
     }) |>
       bindCache(input$round_ids, keep_missing())
 
-    output$round_students = renderTable({
-      req(data_proc, input$round_ids)
-      get_counts_by_round(data_proc()$data[round_id %in% input$round_ids])
-    }, align = 'r')
+    output$plot_innumeracy = renderPlotly({
+      req(data_overall, input$round_ids)
+      p = ggplot(
+        data_overall()$long, aes(x = round_name, group = arm_id, text = label)) +
+        geom_linerange(
+          aes(ymin = pct_noadd_Baseline, ymax = pct_noadd_Endline),
+          position = position_dodge(width = 0.7), color = '#63A3CC',
+          linetype = 'dashed', data = data_overall()$wide) +
+        geom_point(
+          aes(y = pct_noadd, color = timepoint),
+          position = position_dodge(width = 0.7), size = 4) +
+        labs(x = 'Round', y = 'Percentage of students', color = '',
+             title = 'Innumeracy: cannot add') +
+        scale_x_continuous(breaks = unique(d2$round_name)) +
+        scale_y_continuous(labels = scales::label_percent()) +
+        scale_color_manual(values = c('#a6cee3', '#1f78b4'))
+      ggplotly(p)
+    }) |>
+      bindCache(input$round_ids, keep_missing())
+
+    output$plot_improved = renderPlotly({
+      req(data_overall, input$round_ids)
+      p = ggplot(
+        data_overall()$wide, aes(x = round_name, group = arm_id, text = label)) +
+        geom_point(
+          aes(y = pct_improved), position = position_dodge(width = 0.7),
+          color = '#fdbf6f', size = 4) +
+        labs(x = 'Round', y = 'Percentage of students',
+             title = 'Improved: learned a new operation') +
+        scale_x_continuous(breaks = unique(d1$round_name)) +
+        scale_y_continuous(labels = scales::label_percent())
+      ggplotly(p)
+    }) |>
+      bindCache(input$round_ids, keep_missing())
+
+    # combined plots for pooled results
+    # output$plot_all = renderPlot({
+    #   req(data_proc, input$round_ids)
+    #
+    #   data_wide = data_proc()$data_wide[round_id %in% input$round_ids]
+    #   data_long = data_proc()$data_long[round_id %in% input$round_ids]
+    #
+    #   p_imp = get_summary_barplot(
+    #     data_wide, col = 'improved', fill_vals = '#fdbf6f', bar_width = 0.6,
+    #     title = str_wrap('Improved: learned a new operation', 18)) +
+    #     theme(axis.title.y = element_blank())
+    #
+    #   p_div = get_summary_barplot(
+    #     data_long, col = 'can_divide', fill_vals = c('#b2df8a', '#33a02c'),
+    #     title = str_wrap(
+    #       'Numeracy: can add, subtract, multiply, and divide', 30))
+    #
+    #   p_add = get_summary_barplot(
+    #     data_long, col = 'cannot_add', fill_vals = c('#a6cee3', '#1f78b4'),
+    #     title = str_wrap('Innumeracy: cannot add', 30)) +
+    #     theme(axis.title.y = element_blank())
+    #
+    #   # use cowplot::plot_grid() to arrange plots
+    #   plot_grid(
+    #     p_div, p_add, p_imp, nrow = 1L, align = 'h', axis = 'tb',
+    #     rel_widths = c(1, 0.9, 0.7))
+    # }) |>
+    #   bindCache(input$round_ids, keep_missing())
+
+    # output$round_students = renderTable({
+    #   req(data_proc, input$round_ids)
+    #   get_counts_by_round(data_proc()$data_wide[round_id %in% input$round_ids])
+    # }, align = 'r')
   })
 }

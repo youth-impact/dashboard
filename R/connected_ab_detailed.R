@@ -42,7 +42,8 @@ connected_ab_detailed_server = function(id, data_proc, keep_missing) {
           choices = c('percentage', 'count')),
         checkboxInput(
           inputId = ns('show_details'),
-          label = 'Show details')
+          label = 'Show details',
+          value = TRUE)
       )
     })
 
@@ -57,7 +58,7 @@ connected_ab_detailed_server = function(id, data_proc, keep_missing) {
       if (isTRUE(input$show_details)) {
         get_round_text(
           data_proc()$rounds, data_proc()$arms, data_proc()$treatments,
-          data_proc()$data, input$round_ids)
+          data_proc()$data_wide, input$round_ids)
       }
     })
 
@@ -68,9 +69,18 @@ connected_ab_detailed_server = function(id, data_proc, keep_missing) {
       data_long = data_proc()$data_long[round_id %in% input$round_ids]
       data_long[, treatment_name := str_wrap(treatment_name, 20)]
 
-      get_detailed_barplot(
-        data_long, col = 'level_name', by_treatment = TRUE,
+      data_wide = data_proc()$data_wide[round_id %in% input$round_ids]
+      data_wide[, treatment_name := str_wrap(treatment_name, 20)]
+
+      p_stack = get_detailed_barplot(
+        data_long, col = 'level_name', title = '', by_treatment = TRUE,
         percent = startsWith(input$y_display, 'percent'))
+
+      # p_tile = get_tile_plot(
+      #   data_wide, x_col = 'student_level_baseline',
+      #   y_col = 'student_level_endline', by_treatment = TRUE)
+
+      p_stack
     }) |>
       bindCache(input$round_ids, input$y_display, keep_missing())
   })

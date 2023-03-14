@@ -5,6 +5,7 @@ library('data.table')
 library('ggplot2')
 library('glue')
 library('googledrive')
+library('plotly')
 library('shiny')
 library('stringr')
 
@@ -12,9 +13,11 @@ library('stringr')
 theme_set(
   theme_bw() +
     theme(
-      text = element_text(size = 21),
-      axis.title.y = element_text(size = 19),
-      plot.title = element_text(size = 19),
+      text = element_text(size = 18),
+      # axis.title.y = element_text(size = 18),
+      plot.title = element_text(size = 18),
+      # legend.title = element_text(size = 18),
+      # strip.text = element_text(size = 14),
       axis.text = element_text(color = 'black'),
       legend.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = 'cm')))
 
@@ -50,38 +53,6 @@ get_file_metadata = function(folder_url) {
   setorder(files, name)
   files[, modified_time := sapply(files$drive_resource, \(f) f$modifiedTime)]
   files[]
-}
-
-#' Get clean ConnectEd data
-#'
-#' This function largely renames and reformats selected columns.
-#'
-#' @param data_old `data.table` of ConnectEd data derived from the Stata file.
-#' @param inc_miss Character vector of time-points for which to exclude missing
-#'   data.
-#'
-#' @return `data.table` of clean ConnectEd data.
-get_clean_connected_data = function(data_old, keep_missing) {
-  assert_data_table(data_old)
-  data = data_old[, .(
-    round = as.integer(round),
-    treatment = treatment,
-    facilitator_name = as.character(facilitator_i),
-    student_id = sprintf('P%08d', seq_len(.N)),
-    student_level_baseline = as.integer(stud_level_bl),
-    student_level_endline = as.integer(stud_level),
-    student_sex_baseline = as.character(forcats::as_factor(stud_sex_bl)),
-    region_baseline = forcats::as_factor(region_bl)
-  )]
-  data[round == 5L & treatment == '', treatment := 'Caregiver Choice']
-
-  if (!('baseline' %in% keep_missing)) {
-    data = data[!is.na(student_level_baseline)]
-  }
-  if (!('endline' %in% keep_missing)) {
-    data = data[!is.na(student_level_endline)]
-  }
-  data[]
 }
 
 ########################################
@@ -128,9 +99,9 @@ get_round_header = function(rounds, round_id_now) {
 #' @param round_id_now single value indicating current round.
 #'
 #' @return HTML tags.
-get_round_text = function(rounds, arms, treatments, data, round_id_now) {
+get_round_text = function(rounds, arms, treatments, data_wide, round_id_now) {
   round_now = rounds[round_id == round_id_now]
-  data_now = data[round_id == round_id_now, .N, keyby = treatment_id]
+  data_now = data_wide[round_id == round_id_now, .N, keyby = treatment_id]
 
   overview_text = p(
     strong('Purpose: '), round_now$purpose, br(),
@@ -141,22 +112,23 @@ get_round_text = function(rounds, arms, treatments, data, round_id_now) {
     by = c('treatment_id', 'treatment_name')) |>
     merge(data_now, by = 'treatment_id')
   setorder(treatments_now, arm_id)
+  n_students = sum(treatments_now$N)
 
   treatment_text = lapply(seq_len(nrow(treatments_now)), \(i) {
     r = treatments_now[i]
     list(
       strong(r$treatment_name), '(',
       em(glue('{r$N} students'), .noWS = 'outside'),
-      paste('):', r$treatment_description),
-      br())
+      paste('):', r$treatment_description), br())
   })
 
   round_text = tagList(
     overview_text, h5('Treatments'),
     unlist(treatment_text, recursive = FALSE),
-    em(paste(
-      'By default, results only include students',
-      'ascertained at baseline and endline.')),
+    em(glue('{n_students} students in total (by default, ',
+            'only those ascertained at baseline and endline).')),
+    # em(glue('By default, results only include students',
+    #         'ascertained at baseline and endline).')),
     br(), br())
 }
 
@@ -173,18 +145,6 @@ get_counts_by_round = function(data) {
   counts[, N := scales::label_comma()(N)]
   setnames(counts, c('round_name', 'N'), c('Round', 'Students'))
 }
-
-#' Get number of students per treatment
-#'
-#' @param data `data.table` of individual-level data with columns `arm_id` and
-#'   `treatment_name`.
-#'
-#' @return `data.table`
-# get_counts_by_treatment = function(data) {
-#   counts = data[, .N, keyby = .(arm_id, treatment_name)]
-#   counts[, N := scales::label_comma()(N)]
-#   counts[, .(Treatment = treatment_name, `Number of students` = N)]
-# }
 
 ########################################
 
@@ -206,8 +166,8 @@ get_counts_by_round = function(data) {
 #'
 #' @return `ggplot` object.
 get_summary_barplot = function(
-    data, col, fill_vals, title, x_col = 'time', by_treatment = FALSE,
-    percent = TRUE, bar_width = 0.7, text_size = 5.5) {
+    data, col, fill_vals, title, x_col = 'timepoint', by_treatment = FALSE,
+    percent = TRUE, bar_width = 0.7, text_size = 5) {
 
   stopifnot(is_logical(by_treatment))
   stopifnot(is_logical(percent))
@@ -259,7 +219,7 @@ get_summary_barplot = function(
 #'
 #' @return `ggplot` object.
 get_detailed_barplot = function(
-    data, col, x_col = 'time', by_treatment = FALSE, percent = TRUE,
+    data, col, title, x_col = 'timepoint', by_treatment = FALSE, percent = TRUE,
     bar_width = 0.7) {
 
   stopifnot(is_logical(by_treatment))
@@ -273,9 +233,22 @@ get_detailed_barplot = function(
     geom_bar(
       aes(x = .data[[x_col]], fill = .data[[col]]),
       width = bar_width, position = position) +
-    labs(x = '', y = y_lab, fill = 'Level') +
+    labs(x = '', y = y_lab, fill = 'Level', title = title) +
     scale_y_continuous(labels = y_scale) +
     scale_fill_viridis_d(na.value = 'gray')
   if (by_treatment) p = p + facet_wrap(vars(treatment_name))
   p
 }
+
+# get_tile_plot = function(data, x_col, y_col, by_treatment = FALSE) {
+#   p = ggplot(data_wide_agg) +
+#     facet_wrap(vars(treatment_name), nrow = 1L) +
+#     geom_tile(
+#       aes(x = student_level_baseline, y = student_level_endline, fill = N)) +
+#     scale_fill_viridis_c(option = 'viridis')
+# }
+
+########################################
+
+
+

@@ -4,7 +4,7 @@ connected_ab_summary_ui = function(id) {
   ns = NS(id)
 
   tabPanel(
-    title = 'A/B Summary Results',
+    title = 'Detailed Results',
     sidebarLayout(
 
       sidebarPanel(
@@ -37,7 +37,8 @@ connected_ab_summary_server = function(id, data_proc, keep_missing) {
           selected = tail(choices, n = 1L)),
         checkboxInput(
           inputId = ns('show_details'),
-          label = 'Show details')
+          label = 'Show narrative',
+          value = TRUE),
       )
     })
 
@@ -52,7 +53,7 @@ connected_ab_summary_server = function(id, data_proc, keep_missing) {
       if (isTRUE(input$show_details)) {
         get_round_text(
           data_proc()$rounds, data_proc()$arms, data_proc()$treatments,
-          data_proc()$data, input$round_ids)
+          data_proc()$data_wide, input$round_ids)
       }
     })
 
@@ -60,16 +61,16 @@ connected_ab_summary_server = function(id, data_proc, keep_missing) {
     output$plot_all = renderPlot({
       req(data_proc, input$round_ids)
 
-      data = data_proc()$data[round_id %in% input$round_ids]
-      data_long = data_proc()$data_long[round_id %in% input$round_ids]
+      data_wide = data_proc()$data_wide[round_id %in% input$round_ids]
+      data_wide[, treatment_name := str_wrap(treatment_name, 20)]
 
-      data[, treatment_name := str_wrap(treatment_name, 20)]
+      data_long = data_proc()$data_long[round_id %in% input$round_ids]
       data_long[, treatment_name := str_wrap(treatment_name, 20)]
 
       p_imp = get_summary_barplot(
-        data, col = 'improved', fill_vals = '#fdbf6f',
+        data_wide, col = 'improved', fill_vals = '#fdbf6f',
         title = str_wrap('Improved: learned a new operation', 40),
-        by_treatment = TRUE)
+        by_treatment = TRUE, bar_width = 0.6)
 
       p_div = get_summary_barplot(
         data_long, col = 'can_divide', fill_vals = c('#b2df8a', '#33a02c'),
@@ -82,14 +83,25 @@ connected_ab_summary_server = function(id, data_proc, keep_missing) {
         title = str_wrap('Innumeracy: cannot add', 40), by_treatment = TRUE) +
         theme(axis.title.y = element_blank())
 
+      p_stack = get_detailed_barplot(
+        data_long, col = 'level_name', title = 'All levels',
+        by_treatment = TRUE) +
+        theme(axis.title.y = element_blank())
+
       # use cowplot::plot_grid() to arrange plots
-      p_add_div = plot_grid(p_div, p_add, nrow = 1L, align = 'h', axis = 'tblr')
+      p_div_add = plot_grid(p_div, p_add, nrow = 1L, align = 'h', axis = 'tb')
 
-      p_imp_null = plot_grid(
-        p_imp, grid::nullGrob(), nrow = 1L, align = 'h', axis = 'tb',
-        rel_widths = c(1, 1))
+      p_imp_stack = plot_grid(
+        p_imp, p_stack, nrow = 1L, align = 'h', axis = 'tb',
+        rel_widths = c(0.8, 1.2))
 
-      plot_grid(p_imp_null, p_add_div, ncol = 1L)
+      plot_grid(
+        plot_grid(p_div_add, grid::nullGrob(), rel_widths = c(1, 0.13)),
+        p_imp_stack, ncol = 1L)
+
+      # plot_grid(
+      #   p_div, p_add, p_imp, nrow = 1L, align = 'h', axis = 'tb',
+      #   rel_widths = c(1, 0.95, 0.9))
     }) |>
       bindCache(input$round_ids, keep_missing())
   })
