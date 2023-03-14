@@ -109,11 +109,12 @@ get_data_tarl = function(data_raw, keep_missing = c()) {
 }
 
 
-get_data_connected_overall = function(data_proc) {
-  d1 = copy(data_proc$data_long)[, .(
-    n_noadd = sum(cannot_add),
-    n_div = sum(can_divide),
-    n_total = .N),
+get_data_connected_overall = function(data_proc, round_ids) {
+  d1 = copy(data_proc$data_long)[
+    round_id %in% round_ids,
+    .(n_noadd = sum(cannot_add),
+      n_div = sum(can_divide),
+      n_total = .N),
     keyby = .(round_id, round_name, arm_id, treatment_name, timepoint)]
 
   d1[, pct_noadd := n_noadd / n_total]
@@ -124,8 +125,9 @@ get_data_connected_overall = function(data_proc) {
     d1, round_name + arm_id + label ~ timepoint,
     value.var = c('pct_div', 'pct_noadd'))
 
-  d2 = copy(data_proc$data_wide)[, .(
-    pct_improved = sum(improved, na.rm = TRUE) / sum(!is.na(improved))),
+  d2 = copy(data_proc$data_wide)[
+    round_id %in% round_ids,
+    .(pct_improved = sum(improved, na.rm = TRUE) / sum(!is.na(improved))),
     keyby = .(round_id, round_name, arm_id, treatment_name)] |>
     merge(d2)
 

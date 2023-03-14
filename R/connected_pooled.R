@@ -42,16 +42,17 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
     })
 
     data_overall = reactive({
-      req(data_proc)
-      get_data_connected_overall(data_proc())
+      req(data_proc, input$round_ids)
+      get_data_connected_overall(data_proc(), input$round_ids)
     })
 
     # https://meyerweb.com/eric/tools/color-blend/#:::hex
 
     output$plot_numeracy = renderPlotly({
-      req(data_overall, input$round_ids)
+      req(data_overall)
       p = ggplot(
-        data_overall()$long, aes(x = round_name, group = arm_id, text = label)) +
+        data_overall()$long,
+        aes(x = factor(round_name), group = arm_id, text = label)) +
         geom_linerange(
           aes(ymin = pct_div_Baseline, ymax = pct_div_Endline),
           position = position_dodge(width = 0.7), color = '#73C05B',
@@ -61,7 +62,6 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
           position = position_dodge(width = 0.7), size = 4) +
         labs(x = 'Round', y = 'Percentage of students', color = '',
              title = 'Numeracy: can add, subtract, multiply, and divide') +
-        scale_x_continuous(breaks = unique(d2$round_name)) +
         scale_y_continuous(labels = scales::label_percent()) +
         scale_color_manual(values = c('#b2df8a', '#33a02c'))
       ggplotly(p)
@@ -69,9 +69,10 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
       bindCache(input$round_ids, keep_missing())
 
     output$plot_innumeracy = renderPlotly({
-      req(data_overall, input$round_ids)
+      req(data_overall)
       p = ggplot(
-        data_overall()$long, aes(x = round_name, group = arm_id, text = label)) +
+        data_overall()$long,
+        aes(x = factor(round_name), group = arm_id, text = label)) +
         geom_linerange(
           aes(ymin = pct_noadd_Baseline, ymax = pct_noadd_Endline),
           position = position_dodge(width = 0.7), color = '#63A3CC',
@@ -81,7 +82,6 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
           position = position_dodge(width = 0.7), size = 4) +
         labs(x = 'Round', y = 'Percentage of students', color = '',
              title = 'Innumeracy: cannot add') +
-        scale_x_continuous(breaks = unique(d2$round_name)) +
         scale_y_continuous(labels = scales::label_percent()) +
         scale_color_manual(values = c('#a6cee3', '#1f78b4'))
       ggplotly(p)
@@ -89,15 +89,15 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
       bindCache(input$round_ids, keep_missing())
 
     output$plot_improved = renderPlotly({
-      req(data_overall, input$round_ids)
+      req(data_overall)
       p = ggplot(
-        data_overall()$wide, aes(x = round_name, group = arm_id, text = label)) +
+        data_overall()$wide,
+        aes(x = factor(round_name), group = arm_id, text = label)) +
         geom_point(
           aes(y = pct_improved), position = position_dodge(width = 0.7),
           color = '#fdbf6f', size = 4) +
         labs(x = 'Round', y = 'Percentage of students',
              title = 'Improved: learned a new operation') +
-        scale_x_continuous(breaks = unique(d1$round_name)) +
         scale_y_continuous(labels = scales::label_percent())
       ggplotly(p)
     }) |>
