@@ -5,18 +5,20 @@ connected_ab_summary_ui = function(id) {
 
   tabPanel(
     title = 'Detailed Results',
-    sidebarLayout(
+    # sidebarLayout(
 
-      sidebarPanel(
-        uiOutput(ns('ui_input')), # output$ui_input
-        width = 2),
+      # sidebarPanel(
+      #   # uiOutput(ns('ui_input')), # output$ui_input
+      #   width = 2),
 
-      mainPanel(
-        uiOutput(ns('round_header')),
+      # mainPanel(
+        br(),
+        uiOutput(ns('ui_input')),
+        # uiOutput(ns('round_header')),
         uiOutput(ns('round_text')),
-        plotOutput(ns('plot_all'), height = '800px'), # output$plot_all
-        width = 10)
-    )
+        plotOutput(ns('plot_all'), height = '800px')#, # output$plot_all
+        # width = 10)
+    # )
   )
 }
 
@@ -30,9 +32,8 @@ connected_ab_summary_server = function(id, data_proc, keep_missing) {
       choices = get_choices(data_proc()$rounds)
 
       tagList(
-        radioButtons(
+        pickerInput(
           inputId = ns('round_ids'),
-          label = strong('Round'),
           choices = choices,
           selected = tail(choices, n = 1L)),
         checkboxInput(
@@ -67,20 +68,27 @@ connected_ab_summary_server = function(id, data_proc, keep_missing) {
       data_long = data_proc()$data_long[round_id %in% input$round_ids]
       data_long[, treatment_name := str_wrap(treatment_name, 20)]
 
+      str_wd = 40
+
       p_imp = get_summary_barplot(
-        data_wide, col = 'improved', fill_vals = '#fdbf6f',
-        title = str_wrap('Improved: learned a new operation', 40),
+        data_wide, col = 'level_improved', fills = '#56B4E9',
+        title = str_wrap('Improved: learned a new operation', str_wd),
         by_treatment = TRUE, bar_width = 0.6)
 
+      # https://waldyrious.net/viridis-palette-generator/
+      # https://mdigi.tools/lighten-color/
+
       p_div = get_summary_barplot(
-        data_long, col = 'can_divide', fill_vals = c('#b2df8a', '#33a02c'),
-        title = str_wrap(
-          'Numeracy: can add, subtract, multiply, and divide', 40),
+        data_long, col = 'level_division', #fills = c('#b2df8a', '#33a02c'),
+        fills = c('#fef17c', '#fde725'),
+        title = str_wrap('Numeracy: division level', str_wd),
         by_treatment = TRUE)
 
       p_add = get_summary_barplot(
-        data_long, col = 'cannot_add', fill_vals = c('#a6cee3', '#1f78b4'),
-        title = str_wrap('Innumeracy: cannot add', 40), by_treatment = TRUE) +
+        data_long, col = 'level_beginner', #fills = c('#a6cee3', '#1f78b4'),
+        fills = c('#66027e', '#440154'),
+        title = str_wrap('Innumeracy: beginner level', str_wd),
+        by_treatment = TRUE) +
         theme(axis.title.y = element_blank())
 
       p_stack = get_detailed_barplot(

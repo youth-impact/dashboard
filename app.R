@@ -59,8 +59,8 @@ server = function(input, output, session) {
     'connected_ab_summary', data_conn, keep_missing_conn)
 
   # create display elements for ConnectEd A/B Detailed results
-  connected_ab_detailed_server(
-    'connected_ab_detailed', data_conn, keep_missing_conn)
+  # connected_ab_detailed_server(
+  #   'connected_ab_detailed', data_conn, keep_missing_conn)
 
   data_tarl = get_data_tarl_server('get_data_tarl', keep_missing_tarl)
 }

@@ -7,6 +7,7 @@ library('glue')
 library('googledrive')
 library('plotly')
 library('shiny')
+library('shinyWidgets')
 library('stringr')
 
 # set global ggplot theme
@@ -75,7 +76,7 @@ get_choices = function(d, name_col = 'label', val_col = 'round_id') {
   d_unique = unique(d[, c(..name_col, ..val_col)])
   setorderv(d_unique, val_col)
   choices = as.list(d_unique[[val_col]])
-  names(choices) = d_unique[[name_col]]
+  names(choices) = paste('Round', d_unique[[name_col]])
   choices
 }
 
@@ -156,7 +157,7 @@ get_counts_by_round = function(data) {
 #' @param data `data.table` of individual-level data, e.g., from ConnectEd.
 #' @param col string indicating column in `data` that contains logical values to
 #'   use for calculating counts or percentages.
-#' @param fill_vals character vector indicating fill colors for bars.
+#' @param fills character vector indicating fill colors for bars.
 #' @param title string indicating title of plot.
 #' @param x_col string indicating column in `data` to use for x-axis.
 #' @param by_treatment logical indicating whether to facet by `treatment_name`.
@@ -166,7 +167,7 @@ get_counts_by_round = function(data) {
 #'
 #' @return `ggplot` object.
 get_summary_barplot = function(
-    data, col, fill_vals, title, x_col = 'timepoint', by_treatment = FALSE,
+    data, col, fills, title, x_col = 'timepoint', by_treatment = FALSE,
     percent = TRUE, bar_width = 0.7, text_size = 5) {
 
   stopifnot(is_logical(by_treatment))
@@ -186,14 +187,14 @@ get_summary_barplot = function(
 
   data_now = data_now[z == TRUE, env = list(z = col)]
 
-  y_lab = paste(if (percent) 'Percentage' else 'Number', 'of students')
+  y_lab = sprintf('Share of students (%s)', if (percent) '%' else 'n')
   y_scale = if (percent) scales::label_percent() else waiver()
 
   p = ggplot(data_now, aes(x = .data[[x_col]], y = quant_students)) +
     geom_col(aes(fill = .data[[x_col]]), width = bar_width) +
     labs(x = '', y = y_lab, title = title) +
     scale_y_continuous(labels = y_scale) +
-    scale_fill_manual(values = fill_vals) +
+    scale_fill_manual(values = fills) +
     theme(legend.position = 'none')
 
   if (by_treatment) p = p + facet_wrap(vars(treatment_name))
@@ -220,12 +221,12 @@ get_summary_barplot = function(
 #' @return `ggplot` object.
 get_detailed_barplot = function(
     data, col, title, x_col = 'timepoint', by_treatment = FALSE, percent = TRUE,
-    bar_width = 0.7) {
+    bar_width = 0.7, option = 'viridis', direction = -1) {
 
   stopifnot(is_logical(by_treatment))
   stopifnot(is_logical(percent))
 
-  y_lab = paste(if (percent) 'Percentage' else 'Number', 'of students')
+  y_lab = sprintf('Share of students (%s)', if (percent) '%' else 'count')
   y_scale = if (percent) scales::label_percent() else waiver()
   position = if (percent) 'fill' else 'stack'
 
@@ -235,20 +236,23 @@ get_detailed_barplot = function(
       width = bar_width, position = position) +
     labs(x = '', y = y_lab, fill = 'Level', title = title) +
     scale_y_continuous(labels = y_scale) +
-    scale_fill_viridis_d(na.value = 'gray')
+    scale_fill_viridis_d(
+      na.value = 'gray', option = option, direction = direction)
   if (by_treatment) p = p + facet_wrap(vars(treatment_name))
   p
 }
 
-# get_tile_plot = function(data, x_col, y_col, by_treatment = FALSE) {
-#   p = ggplot(data_wide_agg) +
-#     facet_wrap(vars(treatment_name), nrow = 1L) +
-#     geom_tile(
-#       aes(x = student_level_baseline, y = student_level_endline, fill = N)) +
-#     scale_fill_viridis_c(option = 'viridis')
-# }
-
 ########################################
 
-
+# https://stackoverflow.com/questions/61122868/long-facet-wrap-labels-in-ggplotly-plotly-overlap-facets-strip-background
+# facet_strip_bigger = function(p, size = 50) {
+#   n_facets = c(1:length(p[['x']][['layout']][['shapes']]))
+#   for (i in n_facets){
+#     if (n_facets[i] %% 2 == 0) {
+#       p[['x']][['layout']][['shapes']][[i]][['y0']] = size
+#       p[['x']][['layout']][['shapes']][[i]][['y1']] = 0
+#     }
+#   }
+#   p
+# }
 

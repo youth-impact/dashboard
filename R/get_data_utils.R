@@ -31,7 +31,7 @@ get_data_connected = function(data_raw, keep_missing = c()) {
   # use factors to ensure proper ordering in plots
   arms[, treatment_name := forcats::fct_reorder(
     treatment_name, treatment_id, .fun = \(x) x[1L])]
-  levs[, level_name := factor(level_name, level_name)]
+  levs[, level_name := factor(level_name, rev(level_name))]
 
   # basic renaming and selecting particular columns
   data_wide = data_wide[, .(
@@ -69,14 +69,14 @@ get_data_connected = function(data_raw, keep_missing = c()) {
 
   data_long[, timepoint := factor(
     timepoint, meas_vars, c('Baseline', 'Endline'))]
-  data_long[, cannot_add := level_id == 0] # tarl innumeracy
-  data_long[, can_divide := level_id == 4] # tarl numeracy
+  data_long[, level_beginner := level_id == 0] # tarl innumeracy
+  data_long[, level_division := level_id == 4] # tarl numeracy
 
   # add other columns for plotting
   data_wide[, timepoint := 'Baseline\nto Endline']
   data_wide[, student_level_diff :=
               student_level_endline - student_level_baseline]
-  data_wide[, improved := student_level_diff > 0] # moved up
+  data_wide[, level_improved := student_level_diff > 0] # moved up
 
   list(data_wide = data_wide, data_long = data_long, rounds = rounds,
        treatments = treatments, arms = arms, levs = levs)
@@ -85,7 +85,7 @@ get_data_connected = function(data_raw, keep_missing = c()) {
 get_data_tarl = function(data_raw, keep_missing = c()) {
   data_long = copy(data_raw$tarl_data)
 
-  levs = c('Beginner', 'Addition', 'Subtraction', 'Multiplication', 'Division')
+  levs = c('Multiplication', 'Division', 'Subtraction', 'Addition', 'Beginner')
   data_long = unique(data_long)[uid_s != '']
 
   setnames(data_long, 'round', 'timepoint')
@@ -108,27 +108,32 @@ get_data_tarl = function(data_raw, keep_missing = c()) {
   list(data_wide = data_wide, data_long = data_long)
 }
 
+get_data_connected_overall = function(
+    data_proc, round_ids = NULL, dodge = 0.2) {
+  if (is.null(round_ids)) round_ids = unique(data_proc$data_wide$round_id)
 
-get_data_connected_overall = function(data_proc, round_ids) {
   d1 = copy(data_proc$data_long)[
     round_id %in% round_ids,
-    .(n_noadd = sum(cannot_add),
-      n_div = sum(can_divide),
+    .(n_beg = sum(level_name == 'Beginner', na.rm = TRUE),
+      n_div = sum(level_name == 'Division', na.rm = TRUE),
       n_total = .N),
     keyby = .(round_id, round_name, arm_id, treatment_name, timepoint)]
 
   setnames(d1, 'timepoint', 'Timepoint')
-  d1[, pct_noadd := n_noadd / n_total]
-  d1[, pct_div := n_div / n_total]
-  d1[, label := paste('Intervention:', treatment_name)]
+  d1[, pct_beg := 100 * n_beg / n_total]
+  d1[, pct_div := 100 * n_div / n_total]
+  d1[, label := paste('Treatment:', treatment_name)]
+  # d1[, x := round_name + dodge * (1 - 2 * endsWith(arm_id, 'A'))]
 
   d2 = dcast(
     d1, round_name + arm_id + label ~ Timepoint,
-    value.var = c('pct_div', 'pct_noadd'))
+    value.var = c('pct_beg', 'pct_div'))
 
   d2 = copy(data_proc$data_wide)[
     round_id %in% round_ids,
-    .(pct_improved = sum(improved, na.rm = TRUE) / sum(!is.na(improved))),
+    .(n_imp = sum(level_improved, na.rm = TRUE),
+      pct_imp = 100 * sum(level_improved, na.rm = TRUE) /
+        sum(!is.na(level_improved))),
     keyby = .(round_id, round_name, arm_id, treatment_name)] |>
     merge(d2)
 

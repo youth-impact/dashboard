@@ -5,23 +5,24 @@ connected_pooled_ui = function(id) {
 
   tabPanel(
     title = 'Overall Results',
-    sidebarLayout(
+    # sidebarLayout(
+    #
+    #   sidebarPanel(
+    #     uiOutput(ns('ui_input')), # output$ui_input
+    #     width = 2),
 
-      sidebarPanel(
-        uiOutput(ns('ui_input')), # output$ui_input
-        width = 2),
-
-      mainPanel(
+      # mainPanel(
         br(),
+    uiOutput(ns('ui_input')),
         plotlyOutput(ns('plot_numeracy'), width = '80%'),
         br(),
         plotlyOutput(ns('plot_innumeracy'), width = '80%'),
         br(),
-        plotlyOutput(ns('plot_improved'), width = '65%'),
+        plotlyOutput(ns('plot_improved'), width = '65%')#,
         # plotOutput(ns('plot_all'), width = '80%'), # output$plot_all
         # tableOutput(ns('round_students')), # output$round_students
-        width = 10)
-    )
+        # width = 10)
+    # )
   )
 }
 
@@ -34,11 +35,14 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
       ns = session$ns
       choices = get_choices(data_proc()$rounds)
 
-      checkboxGroupInput(
+      # checkboxGroupInput(
+      pickerInput(
         inputId = ns('round_ids'),
-        label = strong('Round'),
         choices = choices,
-        selected = choices)
+        selected = choices,
+        multiple = TRUE,
+        options = pickerOptions(
+          selectedTextFormat = 'static', noneSelectedText = 'Select round(s)'))
     })
 
     data_overall = reactive({
@@ -47,7 +51,7 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
     })
 
     # https://meyerweb.com/eric/tools/color-blend/#:::hex
-    sz = 4
+    sz = 3
     wd = 0.7
     shp = c(24, 25)
 
@@ -63,12 +67,12 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
         geom_point(
           aes(y = pct_div, fill = Timepoint, shape = Timepoint),
           position = position_dodge(width = wd), size = sz, stroke = 0) +
-        labs(x = 'Round', y = 'Percentage of students',
-             title = 'Numeracy: can add, subtract, multiply, and divide') +
-        scale_y_continuous(labels = scales::label_percent()) +
+        labs(x = 'Round', y = 'Share of students (%)',
+             title = 'Numeracy: division level') +
+        scale_y_continuous(labels = scales::label_percent(scale = 1)) +
         scale_fill_manual(values = c('#b2df8a', '#33a02c')) +
         scale_shape_manual(values = shp)
-      ggplotly(p)
+      ggplotly(p, tooltip = 'text')
     }) |>
       bindCache(input$round_ids, keep_missing())
 
@@ -78,18 +82,18 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
         data_overall()$long,
         aes(x = factor(round_name), group = arm_id, text = label)) +
         geom_linerange(
-          aes(ymin = pct_noadd_Baseline, ymax = pct_noadd_Endline),
+          aes(ymin = pct_beg_Baseline, ymax = pct_beg_Endline),
           position = position_dodge(width = wd), color = '#63A3CC',
           linetype = 'dashed', data = data_overall()$wide) +
         geom_point(
-          aes(y = pct_noadd, fill = Timepoint, shape = Timepoint),
+          aes(y = pct_beg, fill = Timepoint, shape = Timepoint),
           position = position_dodge(width = wd), size = sz, stroke = 0) +
-        labs(x = 'Round', y = 'Percentage of students',
-             title = 'Innumeracy: cannot add') +
-        scale_y_continuous(labels = scales::label_percent()) +
+        labs(x = 'Round', y = 'Share of students (%)',
+             title = 'Innumeracy: beginner level') +
+        scale_y_continuous(labels = scales::label_percent(scale = 1)) +
         scale_fill_manual(values = c('#a6cee3', '#1f78b4')) +
         scale_shape_manual(values = shp)
-      ggplotly(p)
+      ggplotly(p, tooltip = 'text')
     }) |>
       bindCache(input$round_ids, keep_missing())
 
@@ -98,13 +102,18 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
       p = ggplot(
         data_overall()$wide,
         aes(x = factor(round_name), group = arm_id, text = label)) +
+        geom_hline(yintercept = 0, color = 'gray') +
+        geom_linerange(
+          aes(ymin = 0, ymax = pct_imp), position = position_dodge(width = wd),
+          color = '#fdbf6f', linetype = 'dashed') +
         geom_point(
-          aes(y = pct_improved), position = position_dodge(width = wd),
+          aes(y = pct_imp), position = position_dodge(width = wd),
           color = '#fdbf6f', size = sz) +
-        labs(x = 'Round', y = 'Percentage of students',
+        labs(x = 'Round', y = 'Share of students (%)',
              title = 'Improved: learned a new operation') +
-        scale_y_continuous(labels = scales::label_percent())
-      ggplotly(p)
+        scale_y_continuous(
+          labels = scales::label_percent(scale = 1), limits = c(0, NA))
+      ggplotly(p, tooltip = 'text')
     }) |>
       bindCache(input$round_ids, keep_missing())
 
