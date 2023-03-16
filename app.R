@@ -11,6 +11,11 @@ ui = navbarPage(
   ),
 
   tabPanel(
+    title = 'Zones',
+    'zones stuff' # placeholder
+  ),
+
+  tabPanel(
     title = 'ConnectEd',
     tabsetPanel(
       connected_pooled_ui('connected_pooled'),
@@ -22,12 +27,10 @@ ui = navbarPage(
 
   tabPanel(
     title = 'TaRL',
-    'tarl stuff' # placeholder
-  ),
-
-  tabPanel(
-    title = 'Zones',
-    'zones stuff' # placeholder
+    tabsetPanel(
+      tarl_detailed_ui('tarl_detailed'),
+      tarl_comparison_ui('tarl_comparison')
+    )
   ),
 
   tabPanel(
@@ -62,7 +65,11 @@ server = function(input, output, session) {
   # connected_ab_detailed_server(
   #   'connected_ab_detailed', data_conn, keep_missing_conn)
 
-  data_tarl = get_data_tarl_server('get_data_tarl', keep_missing_tarl)
+  data_tarl = get_data_tarl_server('get_data_tarl', data_raw)
+
+  tarl_detailed_server('tarl_detailed', data_tarl)
+
+  tarl_comparison_server('tarl_comparison', data_tarl)
 }
 
 # create the shiny app object

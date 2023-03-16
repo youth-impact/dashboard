@@ -4,25 +4,14 @@ connected_pooled_ui = function(id) {
   ns = NS(id)
 
   tabPanel(
-    title = 'Overall Results',
-    # sidebarLayout(
-    #
-    #   sidebarPanel(
-    #     uiOutput(ns('ui_input')), # output$ui_input
-    #     width = 2),
-
-      # mainPanel(
+    title = 'Multiple-round Results',
         br(),
     uiOutput(ns('ui_input')),
         plotlyOutput(ns('plot_numeracy'), width = '80%'),
         br(),
         plotlyOutput(ns('plot_innumeracy'), width = '80%'),
         br(),
-        plotlyOutput(ns('plot_improved'), width = '65%')#,
-        # plotOutput(ns('plot_all'), width = '80%'), # output$plot_all
-        # tableOutput(ns('round_students')), # output$round_students
-        # width = 10)
-    # )
+        plotlyOutput(ns('plot_improved'), width = '65%')
   )
 }
 
@@ -42,7 +31,7 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
         selected = choices,
         multiple = TRUE,
         options = pickerOptions(
-          selectedTextFormat = 'static', noneSelectedText = 'Select round(s)'))
+          selectedTextFormat = 'static', noneSelectedText = 'Round(s)'))
     })
 
     data_overall = reactive({
@@ -110,7 +99,7 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
           aes(y = pct_imp), position = position_dodge(width = wd),
           color = '#fdbf6f', size = sz) +
         labs(x = 'Round', y = 'Share of students (%)',
-             title = 'Improved: learned a new operation') +
+             title = 'Learned a new operation') +
         scale_y_continuous(
           labels = scales::label_percent(scale = 1), limits = c(0, NA))
       ggplotly(p, tooltip = 'text')
@@ -145,10 +134,5 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
     #     rel_widths = c(1, 0.9, 0.7))
     # }) |>
     #   bindCache(input$round_ids, keep_missing())
-
-    # output$round_students = renderTable({
-    #   req(data_proc, input$round_ids)
-    #   get_counts_by_round(data_proc()$data_wide[round_id %in% input$round_ids])
-    # }, align = 'r')
   })
 }

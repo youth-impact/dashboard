@@ -4,21 +4,11 @@ connected_ab_summary_ui = function(id) {
   ns = NS(id)
 
   tabPanel(
-    title = 'Detailed Results',
-    # sidebarLayout(
-
-      # sidebarPanel(
-      #   # uiOutput(ns('ui_input')), # output$ui_input
-      #   width = 2),
-
-      # mainPanel(
-        br(),
+    title = 'Single-round Results',
+    br(),
         uiOutput(ns('ui_input')),
-        # uiOutput(ns('round_header')),
         uiOutput(ns('round_text')),
-        plotOutput(ns('plot_all'), height = '800px')#, # output$plot_all
-        # width = 10)
-    # )
+        plotOutput(ns('plot_all'), height = '800px')
   )
 }
 
@@ -69,12 +59,6 @@ connected_ab_summary_server = function(id, data_proc, keep_missing) {
       data_long[, treatment_name := str_wrap(treatment_name, 20)]
 
       str_wd = 40
-
-      p_imp = get_summary_barplot(
-        data_wide, col = 'level_improved', fills = '#56B4E9',
-        title = str_wrap('Improved: learned a new operation', str_wd),
-        by_treatment = TRUE, bar_width = 0.6)
-
       # https://waldyrious.net/viridis-palette-generator/
       # https://mdigi.tools/lighten-color/
 
@@ -84,12 +68,17 @@ connected_ab_summary_server = function(id, data_proc, keep_missing) {
         title = str_wrap('Numeracy: division level', str_wd),
         by_treatment = TRUE)
 
-      p_add = get_summary_barplot(
+      p_beg = get_summary_barplot(
         data_long, col = 'level_beginner', #fills = c('#a6cee3', '#1f78b4'),
         fills = c('#66027e', '#440154'),
         title = str_wrap('Innumeracy: beginner level', str_wd),
         by_treatment = TRUE) +
         theme(axis.title.y = element_blank())
+
+      p_imp = get_summary_barplot(
+        data_wide, col = 'level_improved', fills = '#56B4E9',
+        title = str_wrap('Learned a new operation', str_wd),
+        by_treatment = TRUE, bar_width = 0.6)
 
       p_stack = get_detailed_barplot(
         data_long, col = 'level_name', title = 'All levels',
@@ -97,19 +86,16 @@ connected_ab_summary_server = function(id, data_proc, keep_missing) {
         theme(axis.title.y = element_blank())
 
       # use cowplot::plot_grid() to arrange plots
-      p_div_add = plot_grid(p_div, p_add, nrow = 1L, align = 'h', axis = 'tb')
+      p_div_beg = plot_grid(p_div, p_beg, nrow = 1L, align = 'h', axis = 'tb')
 
       p_imp_stack = plot_grid(
         p_imp, p_stack, nrow = 1L, align = 'h', axis = 'tb',
         rel_widths = c(0.8, 1.2))
 
-      plot_grid(
-        plot_grid(p_div_add, grid::nullGrob(), rel_widths = c(1, 0.13)),
-        p_imp_stack, ncol = 1L)
-
       # plot_grid(
-      #   p_div, p_add, p_imp, nrow = 1L, align = 'h', axis = 'tb',
-      #   rel_widths = c(1, 0.95, 0.9))
+      #   plot_grid(p_div_beg, grid::nullGrob(), rel_widths = c(1, 0.13)),
+      #   p_imp_stack, ncol = 1L)
+      plot_grid(p_div_beg, p_imp_stack, ncol = 1L)
     }) |>
       bindCache(input$round_ids, keep_missing())
   })

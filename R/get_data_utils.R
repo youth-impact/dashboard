@@ -82,11 +82,12 @@ get_data_connected = function(data_raw, keep_missing = c()) {
        treatments = treatments, arms = arms, levs = levs)
 }
 
-get_data_tarl = function(data_raw, keep_missing = c()) {
+get_data_tarl = function(data_raw, keep_missing = 'Midline') {
   data_long = copy(data_raw$tarl_data)
+  numeracy_levels = copy(data_raw$tarl_numeracy_levels)
 
-  levs = c('Multiplication', 'Division', 'Subtraction', 'Addition', 'Beginner')
   data_long = unique(data_long)[uid_s != '']
+  numeracy_levels[, level_name := factor(level_name, rev(level_name))]
 
   setnames(data_long, 'round', 'timepoint')
   setnames(data_long, \(x) str_replace(x, '^stu_', 'student_'))
@@ -94,18 +95,27 @@ get_data_tarl = function(data_raw, keep_missing = c()) {
 
   data_long[, term := as.integer(str_extract(term, '[0-9]+$'))]
   data_long[, delivery_type := paste(fifelse(
-    delivery_type == 'Model', 'Direct', 'Government'), 'Delivery')]
-  data_long[, imp_length := paste(
-    str_extract(imp_length, '^[0-9]+'), 'days')]
+    delivery_type == 'Model School', 'Direct', 'Government'), 'Delivery')]
+  data_long[, imp_length := paste(str_extract(imp_length, '^[0-9]+'), 'days')]
   data_long[, timepoint := factor(
     timepoint, c('Baseline', 'Midline', 'Endline'))]
-  data_long[, student_level := factor(student_level, levs)]
+  data_long[, student_level := factor(
+    student_level, levels(numeracy_levels$level_name))]
   data_long[, student_id := paste(
-    year, term, delivery_type, uid_s, sep = '|')]
-  setkey(data_long)
+    year, term, phase, delivery_type, imp_length, region, school_name, uid_s,
+    sep = '|')]
 
-  # TODO: use keep_missing
-  list(data_wide = data_wide, data_long = data_long)
+  timepoints_reqd = setdiff(levels(data_long$timepoint), keep_missing)
+  data_long = data_long[
+    , if (all(timepoints_reqd %in% timepoint[!is.na(student_level)])) .SD,
+    by = student_id]
+
+  # data_long[, year_term := ]
+  data_long[, level_beginner := student_level == 'Beginner']
+  data_long[, level_division := student_level == 'Division']
+
+  setkey(data_long)
+  list(data_long = data_long, numeracy_levels = numeracy_levels)
 }
 
 get_data_connected_overall = function(
