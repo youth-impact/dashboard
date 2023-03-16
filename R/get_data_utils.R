@@ -23,7 +23,7 @@ get_data_connected = function(data_raw, keep_missing = c()) {
   rounds = copy(data_raw$connected_rounds)
   arms = copy(data_raw$connected_arms)
   treatments = copy(data_raw$connected_treatments)
-  levs = copy(data_raw$connected_levels)
+  levs = copy(data_raw$numeracy_levels)
 
   rounds[, label := glue(
     '{round_name} ({year}, Term {term})', .envir = .SD)]
@@ -84,7 +84,7 @@ get_data_connected = function(data_raw, keep_missing = c()) {
 
 get_data_tarl = function(data_raw, keep_missing = 'Midline') {
   data_long = copy(data_raw$tarl_data)
-  numeracy_levels = copy(data_raw$tarl_numeracy_levels)
+  numeracy_levels = copy(data_raw$numeracy_levels)
 
   data_long = unique(data_long)[uid_s != '']
   numeracy_levels[, level_name := factor(level_name, rev(level_name))]
@@ -118,15 +118,11 @@ get_data_tarl = function(data_raw, keep_missing = 'Midline') {
   list(data_long = data_long, numeracy_levels = numeracy_levels)
 }
 
-get_data_connected_overall = function(
-    data_proc, round_ids = NULL, dodge = 0.2) {
-  if (is.null(round_ids)) round_ids = unique(data_proc$data_wide$round_id)
-
-  d1 = copy(data_proc$data_long)[
-    round_id %in% round_ids,
-    .(n_beg = sum(level_name == 'Beginner', na.rm = TRUE),
-      n_div = sum(level_name == 'Division', na.rm = TRUE),
-      n_total = .N),
+get_data_connected_overall = function(data_conn, dodge = 0.2) {
+  d1 = data_conn$data_long[, .(
+    n_beg = sum(level_name == 'Beginner', na.rm = TRUE),
+    n_div = sum(level_name == 'Division', na.rm = TRUE),
+    n_total = .N),
     keyby = .(round_id, round_name, arm_id, treatment_name, timepoint)]
 
   setnames(d1, 'timepoint', 'Timepoint')
@@ -139,13 +135,24 @@ get_data_connected_overall = function(
     d1, round_name + arm_id + label ~ Timepoint,
     value.var = c('pct_beg', 'pct_div'))
 
-  d2 = copy(data_proc$data_wide)[
-    round_id %in% round_ids,
-    .(n_imp = sum(level_improved, na.rm = TRUE),
-      pct_imp = 100 * sum(level_improved, na.rm = TRUE) /
-        sum(!is.na(level_improved))),
+  d2 = data_conn$data_wide[, .(
+    n_imp = sum(level_improved, na.rm = TRUE),
+    pct_imp = 100 * sum(level_improved, na.rm = TRUE) /
+      sum(!is.na(level_improved))),
     keyby = .(round_id, round_name, arm_id, treatment_name)] |>
     merge(d2)
 
   list(long = d1, wide = d2)
+}
+
+get_data_filtered = function(x, filt) {
+  y = lapply(x, \(d) {
+    if (any(colnames(filt) %in% colnames(d))) {
+      merge(d, filt, by = intersect(colnames(filt), colnames(d)))
+    } else {
+      copy(d)
+    }
+  })
+  names(y) = names(x)
+  y
 }

@@ -86,10 +86,13 @@ get_choices = function(d, name_col = 'label', val_col = 'round_id') {
 #' @param round_id_now single value indicating current round.
 #'
 #' @return HTML tags.
-get_round_header = function(rounds, round_id_now) {
-  round_now = rounds[round_id == round_id_now]
-  round_header = h4(paste('Round', round_now$label))
-}
+# get_round_header = function(rounds, round_id_now) {
+#   round_now = rounds[round_id == round_id_now]
+#   round_header = h4(paste('Round', round_now$label))
+# }
+# get_round_header = function(round_now) {
+#   h4(paste('Round', round_now$label))
+# }
 
 #' Get narrative text describing a round of ConnectEd
 #'
@@ -100,16 +103,17 @@ get_round_header = function(rounds, round_id_now) {
 #' @param round_id_now single value indicating current round.
 #'
 #' @return HTML tags.
-get_round_text = function(rounds, arms, treatments, data_wide, round_id_now) {
-  round_now = rounds[round_id == round_id_now]
-  data_now = data_wide[round_id == round_id_now, .N, keyby = treatment_id]
+get_round_text = function(data_proc) {
+  # round_now = rounds[round_id == round_id_now]
+  # data_now = data_wide[round_id == round_id_now, .N, keyby = treatment_id]
+  data_now = data_proc$data_wide[, .N, keyby = treatment_id]
 
   overview_text = p(
-    strong('Purpose: '), round_now$purpose, br(),
-    strong('Conclusion: '), round_now$conclusion)
+    strong('Purpose: '), data_proc$rounds$purpose, br(),
+    strong('Conclusion: '), data_proc$rounds$conclusion)
 
   treatments_now = merge(
-    treatments, arms[round_id == round_id_now],
+    data_proc$treatments, data_proc$arms,
     by = c('treatment_id', 'treatment_name')) |>
     merge(data_now, by = 'treatment_id')
   setorder(treatments_now, arm_id)

@@ -73,7 +73,6 @@ tarl_detailed_server = function(id, data_proc) {
     output$plot_overall = renderPlot({
       req(data_long_filt)
 
-      str_wd = 20
       data_long_now = data_long_filt()
       # levels of student_level go from Division to Beginner, so diff < 0
       data_wide = data_long_now[, .(
@@ -86,18 +85,16 @@ tarl_detailed_server = function(id, data_proc) {
 
       p_div = get_summary_barplot(
         data_long_now, col = 'level_division', #fills = c('#b2df8a', '#33a02c'),
-        fills = c('#fef17c', '#fde725'),
-        title = str_wrap('Numeracy: division level', str_wd))
+        fills = c('#fef17c', '#fde725'), title = 'Numeracy:\ndivision level')
 
       p_beg = get_summary_barplot(
         data_long_now, col = 'level_beginner', #fills = c('#a6cee3', '#1f78b4'),
-        fills = c('#66027e', '#440154'),
-        title = str_wrap('Innumeracy: beginner level', str_wd)) +
+        fills = c('#66027e', '#440154'), title = 'Innumeracy:\nbeginner level') +
         theme(axis.title.y = element_blank())
 
       p_imp = get_summary_barplot(
         data_wide, col = 'level_improved', fills = '#56B4E9',
-        title = str_wrap('Learned a new operation', str_wd), bar_width = 0.6) +
+        title = 'Learned a\nnew operation', bar_width = 0.6) +
         theme(axis.title.y = element_blank())
 
       p_stack = get_detailed_barplot(

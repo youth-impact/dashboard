@@ -6,9 +6,9 @@ connected_ab_summary_ui = function(id) {
   tabPanel(
     title = 'Single-round Results',
     br(),
-        uiOutput(ns('ui_input')),
-        uiOutput(ns('round_text')),
-        plotOutput(ns('plot_all'), height = '800px')
+    uiOutput(ns('ui_input')),
+    uiOutput(ns('round_text')),
+    plotOutput(ns('plot_all'), height = '800px')
   )
 }
 
@@ -27,35 +27,37 @@ connected_ab_summary_server = function(id, data_proc, keep_missing) {
           choices = choices,
           selected = tail(choices, n = 1L)),
         checkboxInput(
-          inputId = ns('show_details'),
+          inputId = ns('show_narrative'),
           label = 'Show narrative',
           value = TRUE),
       )
     })
 
-    output$round_header = renderUI({
+    data_filt = reactive({
       req(data_proc, input$round_ids)
-      get_round_header(data_proc()$rounds, input$round_ids)
+      filt = CJ(round_id = input$round_ids)
+      get_data_filtered(data_proc(), filt)
+    })
+
+    output$round_header = renderUI({
+      req(data_filt)
+      h4(paste('Round', data_filt()$rounds$label))
     })
 
     # narrative text for the selected round
     output$round_text = renderUI({
-      req(data_proc, input$round_ids)
-      if (isTRUE(input$show_details)) {
-        get_round_text(
-          data_proc()$rounds, data_proc()$arms, data_proc()$treatments,
-          data_proc()$data_wide, input$round_ids)
-      }
+      req(data_filt)
+      if (isTRUE(input$show_narrative)) get_round_text(data_filt())
     })
 
     # combined plots for A/B summary results
     output$plot_all = renderPlot({
-      req(data_proc, input$round_ids)
+      req(data_filt)
 
-      data_wide = data_proc()$data_wide[round_id %in% input$round_ids]
+      data_wide = copy(data_filt()$data_wide)
       data_wide[, treatment_name := str_wrap(treatment_name, 20)]
 
-      data_long = data_proc()$data_long[round_id %in% input$round_ids]
+      data_long = copy(data_filt()$data_long)
       data_long[, treatment_name := str_wrap(treatment_name, 20)]
 
       str_wd = 40
@@ -92,9 +94,6 @@ connected_ab_summary_server = function(id, data_proc, keep_missing) {
         p_imp, p_stack, nrow = 1L, align = 'h', axis = 'tb',
         rel_widths = c(0.8, 1.2))
 
-      # plot_grid(
-      #   plot_grid(p_div_beg, grid::nullGrob(), rel_widths = c(1, 0.13)),
-      #   p_imp_stack, ncol = 1L)
       plot_grid(p_div_beg, p_imp_stack, ncol = 1L)
     }) |>
       bindCache(input$round_ids, keep_missing())

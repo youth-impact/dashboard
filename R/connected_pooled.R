@@ -5,13 +5,13 @@ connected_pooled_ui = function(id) {
 
   tabPanel(
     title = 'Multiple-round Results',
-        br(),
+    br(),
     uiOutput(ns('ui_input')),
-        plotlyOutput(ns('plot_numeracy'), width = '80%'),
-        br(),
-        plotlyOutput(ns('plot_innumeracy'), width = '80%'),
-        br(),
-        plotlyOutput(ns('plot_improved'), width = '65%')
+    plotlyOutput(ns('plot_numeracy'), width = '80%'),
+    br(),
+    plotlyOutput(ns('plot_innumeracy'), width = '80%'),
+    br(),
+    plotlyOutput(ns('plot_improved'), width = '65%')
   )
 }
 
@@ -34,9 +34,15 @@ connected_pooled_server = function(id, data_proc, keep_missing) {
           selectedTextFormat = 'static', noneSelectedText = 'Round(s)'))
     })
 
-    data_overall = reactive({
+    data_filt = reactive({
       req(data_proc, input$round_ids)
-      get_data_connected_overall(data_proc(), input$round_ids)
+      filt = CJ(round_id = input$round_ids)
+      get_data_filtered(data_proc(), filt)
+    })
+
+    data_overall = reactive({
+      req(data_filt)
+      get_data_connected_overall(data_filt(), input$round_ids)
     })
 
     # https://meyerweb.com/eric/tools/color-blend/#:::hex
