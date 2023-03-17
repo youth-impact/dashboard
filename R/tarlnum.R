@@ -27,7 +27,7 @@ tarlnum_ui = function(id) {
           plotOutput(ns('plot_detailed_overall'))
         ),
         tabPanel(
-          title = 'By School',
+          title = 'Results by School',
           br(),
           p('TBD')
         ),
@@ -53,11 +53,15 @@ tarlnum_server = function(id, data_proc) {
 
       delivery_types = sort(unique(data_proc()$data_long$delivery_type))
       delivery_types_options = get_picker_options(
-        noneSelectedText = 'Delivery type(s)')
+        noneSelectedText = 'Delivery types')
 
       regions = sort(unique(data_proc()$data_long$region))
       regions_options = get_picker_options(
-        noneSelectedText = 'Region(s)')
+        noneSelectedText = 'Regions')
+
+      year_terms = sort(unique(data_proc()$data_long$year_term))
+      year_terms_options = get_picker_options(
+        noneSelectedText = 'Years and terms')
 
       tagList(
         pickerInput(
@@ -73,15 +77,23 @@ tarlnum_server = function(id, data_proc) {
           selected = regions,
           multiple = TRUE,
           options = regions_options
+        ),
+        pickerInput(
+          inputId = ns('year_terms'),
+          choices = year_terms,
+          selected = year_terms,
+          multiple = TRUE,
+          options = year_terms_options
         )
       )
     })
 
     data_long_filt = reactive({
-      req(data_proc, input$delivery_types, input$regions)
+      req(data_proc, input$delivery_types, input$regions, input$year_terms)
       filt = CJ(
         delivery_type = input$delivery_types,
-        region = input$regions)
+        region = input$regions,
+        year_term = input$year_terms)
       get_data_filtered(data_proc(), filt)$data_long[
         timepoint != 'Midline'][order(timepoint)]
     })
@@ -132,7 +144,7 @@ tarlnum_server = function(id, data_proc) {
         p_div, p_beg, p_imp, nrow = 1L, align = 'h', axis = 'tb',
         rel_widths = c(1, 0.95, 0.7))
     }) |>
-      bindCache(input$delivery_types, input$regions)
+      bindCache(input$delivery_types, input$regions, input$year_terms)
 
     output$plot_detailed_overall = renderPlot({
       req(data_long_filt)
@@ -140,14 +152,15 @@ tarlnum_server = function(id, data_proc) {
         data_long_filt(), col = 'student_level', fills = get_levels_fills(),
         title = 'All levels')
     }) |>
-      bindCache(input$delivery_types, input$regions)
+      bindCache(input$delivery_types, input$regions, input$year_terms)
 
     # TODO: tables for numeracy stats by school
 
     data_long_comp = reactive({
-      req(data_proc, input$regions)
+      req(data_proc, input$regions, input$year_terms)
       filt = CJ(
-        region = input$regions)
+        region = input$regions,
+        year_term = input$year_terms)
       d = get_data_filtered(data_proc(), filt)$data_long
       d = d[timepoint != 'Midline'][order(timepoint)]
       d[, treatment_id := delivery_type]
@@ -190,7 +203,6 @@ tarlnum_server = function(id, data_proc) {
 
       # TODO: plot student_level_diff?
     }) |>
-      bindCache(input$regions)
-
+      bindCache(input$regions, input$year_terms)
   })
 }

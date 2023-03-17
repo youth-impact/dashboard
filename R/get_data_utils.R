@@ -110,7 +110,7 @@ get_data_tarlnum = function(data_raw, keep_missing = 'Midline') {
     , if (all(timepoints_reqd %in% timepoint[!is.na(student_level)])) .SD,
     by = student_id]
 
-  # data_long[, year_term := ]
+  data_long[, year_term := paste0(year, ' T', term)]
   data_long[, level_beginner := student_level == 'Beginner']
   data_long[, level_division := student_level == 'Division']
 

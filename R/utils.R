@@ -146,7 +146,6 @@ get_summary_barplot = function(
   stopifnot(is_logical(percent))
 
   by1 = c(x_col, col)
-  # if (by_treatment) by1 = c('round_id', 'treatment_id', 'treatment_name', by1)
   if (by_treatment) by1 = c('treatment_id', 'treatment_name', by1)
   by2 = by1[-length(by1)]
 
