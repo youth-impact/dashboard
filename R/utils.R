@@ -19,7 +19,7 @@ theme_set(
       plot.title = element_text(size = 18),
       # legend.title = element_text(size = 18),
       # strip.text = element_text(size = 14),
-      axis.text = element_text(color = 'black'),
+      axis.text = element_text(size = 16, color = 'black'),
       legend.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = 'cm')))
 
 # set ggplot styling to match CSS for shiny app
@@ -80,20 +80,6 @@ get_choices = function(d, name_col = 'label', val_col = 'round_id') {
   choices
 }
 
-#' Get header for a round of ConnectEd
-#'
-#' @param rounds `data.table` containing metadata for rounds.
-#' @param round_id_now single value indicating current round.
-#'
-#' @return HTML tags.
-# get_round_header = function(rounds, round_id_now) {
-#   round_now = rounds[round_id == round_id_now]
-#   round_header = h4(paste('Round', round_now$label))
-# }
-# get_round_header = function(round_now) {
-#   h4(paste('Round', round_now$label))
-# }
-
 #' Get narrative text describing a round of ConnectEd
 #'
 #' @param rounds `data.table` containing metadata for rounds.
@@ -104,8 +90,6 @@ get_choices = function(d, name_col = 'label', val_col = 'round_id') {
 #'
 #' @return HTML tags.
 get_round_text = function(data_proc) {
-  # round_now = rounds[round_id == round_id_now]
-  # data_now = data_wide[round_id == round_id_now, .N, keyby = treatment_id]
   data_now = data_proc$data_wide[, .N, keyby = treatment_id]
 
   overview_text = p(
@@ -130,25 +114,9 @@ get_round_text = function(data_proc) {
   round_text = tagList(
     overview_text, h5('Treatments'),
     unlist(treatment_text, recursive = FALSE),
-    em(glue('{n_students} students in total (by default, ',
-            'only those ascertained at baseline and endline).')),
-    # em(glue('By default, results only include students',
-    #         'ascertained at baseline and endline).')),
+    em(glue('{n_students} students in total ',
+            '(ascertained at baseline and endline).')),
     br(), br())
-}
-
-#' Get number of students per round
-#'
-#' @param data `data.table` of individual-level data with columns `round_id` and
-#'   `round_name`.
-#'
-#' @return `data.table`
-get_counts_by_round = function(data) {
-  counts = data[, .N, keyby = .(round_id, round_name)]
-  counts = rbind(
-    counts[, !'round_id'], data.table(round_name = 'Total', N = sum(counts$N)))
-  counts[, N := scales::label_comma()(N)]
-  setnames(counts, c('round_name', 'N'), c('Round', 'Students'))
 }
 
 ########################################
@@ -172,7 +140,7 @@ get_counts_by_round = function(data) {
 #' @return `ggplot` object.
 get_summary_barplot = function(
     data, col, fills, title, x_col = 'timepoint', by_treatment = FALSE,
-    percent = TRUE, bar_width = 0.7, text_size = 5) {
+    percent = TRUE, bar_width = 0.7, text_size = 5, y_lims = NULL) {
 
   stopifnot(is_logical(by_treatment))
   stopifnot(is_logical(percent))
@@ -198,7 +166,7 @@ get_summary_barplot = function(
   p = ggplot(data_now, aes(x = .data[[x_col]], y = quant_students)) +
     geom_col(aes(fill = .data[[x_col]]), width = bar_width) +
     labs(x = '', y = y_lab, title = title) +
-    scale_y_continuous(labels = y_scale) +
+    scale_y_continuous(labels = y_scale, limits = y_lims) +
     scale_fill_manual(values = fills) +
     theme(legend.position = 'none')
 
@@ -225,8 +193,8 @@ get_summary_barplot = function(
 #'
 #' @return `ggplot` object.
 get_detailed_barplot = function(
-    data, col, title, x_col = 'timepoint', by_treatment = FALSE, percent = TRUE,
-    bar_width = 0.7, option = 'viridis', direction = -1) {
+    data, col, fills, title, x_col = 'timepoint', by_treatment = FALSE,
+    percent = TRUE, bar_width = 0.7) {
 
   stopifnot(is_logical(by_treatment))
   stopifnot(is_logical(percent))
@@ -239,10 +207,10 @@ get_detailed_barplot = function(
     geom_bar(
       aes(x = .data[[x_col]], fill = .data[[col]]),
       width = bar_width, position = position) +
-    labs(x = '', y = y_lab, fill = 'Level', title = title) +
+    labs(y = y_lab, fill = 'Level', title = title) +
     scale_y_continuous(labels = y_scale) +
-    scale_fill_viridis_d(
-      na.value = 'gray', option = option, direction = direction)
+    scale_fill_manual(values = fills) +
+    theme(axis.title.x = element_blank())
   if (by_treatment) p = p + facet_wrap(vars(treatment_name))
   p
 }
@@ -267,4 +235,9 @@ get_picker_options = function(...) {
 
 get_count_comma = function(data, col = 'student_id') {
   n = scales::label_comma()(uniqueN(data[[col]]))
+}
+
+get_levels_fills = function(palette = 'YlGnBu') { # 'Blues'
+  # https://meyerweb.com/eric/tools/color-blend/#FB9A99:E31A1C:1:hex
+  rev(c('#EF5A5B', RColorBrewer::brewer.pal(n = 5L, name = palette)[-1L]))
 }

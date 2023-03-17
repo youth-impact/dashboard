@@ -23,7 +23,7 @@ get_data_connected = function(data_raw, keep_missing = c()) {
   rounds = copy(data_raw$connected_rounds)
   arms = copy(data_raw$connected_arms)
   treatments = copy(data_raw$connected_treatments)
-  levs = copy(data_raw$numeracy_levels)
+  numeracy_levels = copy(data_raw$numeracy_levels)
 
   rounds[, label := glue(
     '{round_name} ({year}, Term {term})', .envir = .SD)]
@@ -31,7 +31,7 @@ get_data_connected = function(data_raw, keep_missing = c()) {
   # use factors to ensure proper ordering in plots
   arms[, treatment_name := forcats::fct_reorder(
     treatment_name, treatment_id, .fun = \(x) x[1L])]
-  levs[, level_name := factor(level_name, rev(level_name))]
+  numeracy_levels[, level_name := factor(level_name, rev(level_name))]
 
   # basic renaming and selecting particular columns
   data_wide = data_wide[, .(
@@ -65,24 +65,24 @@ get_data_connected = function(data_raw, keep_missing = c()) {
   data_long = melt(
     data_wide, measure.vars = meas_vars,
     variable.name = 'timepoint', value.name = 'level_id') |>
-    merge(levs, by = 'level_id', all.x = TRUE, sort = FALSE)
+    merge(numeracy_levels, by = 'level_id', all.x = TRUE, sort = FALSE)
 
   data_long[, timepoint := factor(
     timepoint, meas_vars, c('Baseline', 'Endline'))]
-  data_long[, level_beginner := level_id == 0] # tarl innumeracy
-  data_long[, level_division := level_id == 4] # tarl numeracy
+  data_long[, level_beginner := level_id == 0]
+  data_long[, level_division := level_id == 4]
 
   # add other columns for plotting
   data_wide[, timepoint := 'Baseline\nto Endline']
   data_wide[, student_level_diff :=
               student_level_endline - student_level_baseline]
-  data_wide[, level_improved := student_level_diff > 0] # moved up
+  data_wide[, level_improved := student_level_diff > 0]
 
   list(data_wide = data_wide, data_long = data_long, rounds = rounds,
-       treatments = treatments, arms = arms, levs = levs)
+       treatments = treatments, arms = arms, numeracy_levels = numeracy_levels)
 }
 
-get_data_tarl = function(data_raw, keep_missing = 'Midline') {
+get_data_tarlnum = function(data_raw, keep_missing = 'Midline') {
   data_long = copy(data_raw$tarl_data)
   numeracy_levels = copy(data_raw$numeracy_levels)
 
@@ -115,7 +115,7 @@ get_data_tarl = function(data_raw, keep_missing = 'Midline') {
   data_long[, level_division := student_level == 'Division']
 
   setkey(data_long)
-  list(data_long = data_long, numeracy_levels = numeracy_levels)
+  list(data_long = data_long[], numeracy_levels = numeracy_levels)
 }
 
 get_data_connected_overall = function(data_conn, dodge = 0.2) {
@@ -148,7 +148,8 @@ get_data_connected_overall = function(data_conn, dodge = 0.2) {
 get_data_filtered = function(x, filt) {
   y = lapply(x, \(d) {
     if (any(colnames(filt) %in% colnames(d))) {
-      merge(d, filt, by = intersect(colnames(filt), colnames(d)))
+      by_cols = intersect(colnames(filt), colnames(d))
+      merge(d, filt, by = by_cols, allow.cartesian = TRUE)
     } else {
       copy(d)
     }

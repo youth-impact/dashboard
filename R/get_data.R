@@ -21,23 +21,23 @@ get_data_raw_server = function(id, folder_url) {
 }
 
 # process raw ConnectEd data
-get_data_connected_server = function(id, data_raw, keep_missing) {
+get_data_connected_server = function(id, data_raw) {
   moduleServer(id, function(input, output, session) {
 
     data_proc = reactive({
-      req(data_raw, keep_missing)
-      get_data_connected(data_raw(), keep_missing())
+      req(data_raw)
+      get_data_connected(data_raw())
     })
   })
 }
 
 # process raw TaRL data
-get_data_tarl_server = function(id, data_raw) {
+get_data_tarlnum_server = function(id, data_raw) {
   moduleServer(id, function(input, output, session) {
 
     data_proc = reactive({
       req(data_raw)
-      get_data_tarl(data_raw())
+      get_data_tarlnum(data_raw())
     })
   })
 }
