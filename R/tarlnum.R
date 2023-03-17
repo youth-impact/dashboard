@@ -22,7 +22,7 @@ tarlnum_ui = function(id) {
         ),
         tabPanel(
           title = 'Detailed Results',
-          h4('Overall'),
+          # h4('Overall'),
           plotOutput(ns('plot_detailed_overall'))
         ),
         tabPanel(
@@ -33,7 +33,7 @@ tarlnum_ui = function(id) {
           title = 'Comparing Direct and Govt. Delivery',
           br(),
           p(em('Based on filtering options other than delivery type.')),
-          h4('Overall'),
+          # h4('Overall'),
           plotOutput(ns('plot_comp_overall'), height = '800px')
         )
       ),
@@ -140,7 +140,7 @@ tarlnum_server = function(id, data_proc) {
     }) |>
       bindCache(input$delivery_types, input$regions)
 
-    # TODO: tables for numeracy
+    # TODO: tables for numeracy stats by school
 
     data_long_comp = reactive({
       req(data_proc, input$regions)
@@ -173,7 +173,7 @@ tarlnum_server = function(id, data_proc) {
         theme(axis.title.y = element_blank())
 
       p_imp = get_summary_barplot(
-        data_wide, col = 'level_improved', fills = '#33a02c', y_lims = c(0, 1),
+        data_wide, col = 'level_improved', fills = '#33a02c',
         title = 'Learned a new operation', by_treatment = TRUE)
 
       # use cowplot::plot_grid() to arrange plots
