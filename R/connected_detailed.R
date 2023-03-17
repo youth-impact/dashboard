@@ -5,10 +5,19 @@ connected_detailed_ui = function(id) {
 
   tabPanel(
     title = 'Detailed Results',
-    br(),
-    uiOutput(ns('ui_input')),
-    uiOutput(ns('round_text')),
-    plotOutput(ns('plot_detailed'))
+    sidebarLayout(
+      sidebarPanel(
+        uiOutput(ns('ui_input')),
+        width = 3
+      ),
+
+      mainPanel(
+        br(),
+        uiOutput(ns('round_text')),
+        plotOutput(ns('plot_detailed')),
+        width = 9
+      )
+    )
   )
 }
 
@@ -27,6 +36,10 @@ connected_detailed_server = function(id, data_proc) {
           choices = choices,
           selected = tail(choices, n = 1L)
         ),
+        checkboxInput(
+          inputId = ns('by_treatment'),
+          label = 'Split results by treatment',
+          value = TRUE),
         checkboxInput(
           inputId = ns('show_narrative'),
           label = 'Show narrative',
@@ -52,8 +65,8 @@ connected_detailed_server = function(id, data_proc) {
       data_long_now = data_filt()$data_long
       get_detailed_barplot(
         data_long_now, col = 'level_name', fills = get_levels_fills(),
-        title = 'All levels', by_treatment = TRUE)
+        title = 'All levels', by_treatment = input$by_treatment)
     }) |>
-      bindCache(input$round_ids)
+      bindCache(input$round_ids, input$by_treatment)
   })
 }

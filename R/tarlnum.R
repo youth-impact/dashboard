@@ -23,10 +23,12 @@ tarlnum_ui = function(id) {
         tabPanel(
           title = 'Detailed Results',
           # h4('Overall'),
+          br(),
           plotOutput(ns('plot_detailed_overall'))
         ),
         tabPanel(
           title = 'By School',
+          br(),
           p('TBD')
         ),
         tabPanel(
