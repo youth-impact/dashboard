@@ -244,7 +244,7 @@ tarlnum_server = function(id, data_proc) {
       req(data_filt)
       fig = get_barplot_detailed(
         data_filt()$long, col = 'student_level', fills = get_fills('full'))
-      anno = list(c(list(x = 0, y = 1, text = 'All levels'), anno_base))
+      anno = list(x = 0, y = 1, text = 'All levels')
       ggplotly(fig, tooltip = 'text') |>
         layout(annotations = c(anno, anno_base))
     }) |>

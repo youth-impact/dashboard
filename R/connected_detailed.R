@@ -60,17 +60,17 @@ connected_detailed_server = function(id, data_proc) {
 
     # plot for A/B detailed results
     output$plot_detailed = renderPlotly({
-      req(data_filt, input$by_treatment)
+      req(data_filt, !is.null(input$by_treatment))
 
       y = if (input$by_treatment) 1.1 else 1
-      annos = list(c(list(x = 0, y = y, text = 'All levels'), anno_base))
+      anno = list(x = 0, y = y, text = 'All levels')
       marg = if (input$by_treatment) list(t = 50) else NULL
 
       fig = get_barplot_detailed(
         data_filt()$data_long, col = 'level_name', fills = get_fills('full'),
         by_treatment = input$by_treatment)
       ggplotly(fig, tooltip = 'text') |>
-        layout(annotations = annos, margin = marg)
+        layout(annotations = c(anno, anno_base), margin = marg)
     }) |>
       bindCache(input$round_ids, input$by_treatment)
   })
