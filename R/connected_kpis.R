@@ -10,7 +10,6 @@ connected_kpis_ui = function(id) {
         uiOutput(ns('ui_input')),
         width = 3
       ),
-
       mainPanel(
         br(),
         uiOutput(ns('round_text')),
@@ -69,29 +68,30 @@ connected_kpis_server = function(id, data_proc) {
       data_long = copy(data_filt()$data_long)
       data_long[, treatment_name := str_wrap(treatment_name, 20)]
 
-      p_div = get_summary_barplot(
-        data_long, col = 'level_division', fills = c('#a6cee3', '#1f78b4'),
+      fig_ace = get_barplot_summary(
+        data_long, col = 'level_ace', fills = get_fills('ace'),
         title = 'Numeracy: division level', by_treatment = input$by_treatment)
 
-      p_beg = get_summary_barplot(
-        data_long, col = 'level_beginner', fills = c('#fb9a99', '#e31a1c'),
+      fig_beg = get_barplot_summary(
+        data_long, col = 'level_beginner', fills = get_fills('beginner'),
         title = 'Innumeracy: beginner level',
         by_treatment = input$by_treatment) +
         theme(axis.title.y = element_blank())
 
-      p_imp = get_summary_barplot(
-        data_wide, col = 'level_improved', fills = '#33a02c',
-        title = 'Learned a new operation', by_treatment = input$by_treatment)
+      fig_imp = get_barplot_summary(
+        data_wide, col = 'level_improved', fills = get_fills('improved'),
+        title = 'Improved at least one level',
+        by_treatment = input$by_treatment)
 
       # use cowplot::plot_grid() to arrange plots
-      p_div_beg = plot_grid(
-        p_div, p_beg, nrow = 1L, align = 'h', axis = 'tb',
+      fig_ace_beg = plot_grid(
+        fig_ace, fig_beg, nrow = 1L, align = 'h', axis = 'tb',
         rel_widths = c(1, 0.95))
 
-      p_imp_null = plot_grid(
-        p_imp, grid::nullGrob(), nrow = 1L, rel_widths = c(1, 1))
+      fig_imp_null = plot_grid(
+        fig_imp, grid::nullGrob(), nrow = 1L, rel_widths = c(1, 1))
 
-      plot_grid(p_div_beg, p_imp_null, ncol = 1L)
+      plot_grid(fig_ace_beg, fig_imp_null, ncol = 1L)
     }) |>
       bindCache(input$round_ids, input$by_treatment)
   })

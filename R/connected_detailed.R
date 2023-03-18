@@ -10,11 +10,10 @@ connected_detailed_ui = function(id) {
         uiOutput(ns('ui_input')),
         width = 3
       ),
-
       mainPanel(
         br(),
         uiOutput(ns('round_text')),
-        plotOutput(ns('plot_detailed')),
+        plotlyOutput(ns('plot_detailed')),
         width = 9
       )
     )
@@ -60,12 +59,18 @@ connected_detailed_server = function(id, data_proc) {
     })
 
     # plot for A/B detailed results
-    output$plot_detailed = renderPlot({
-      req(data_filt)
-      data_long_now = data_filt()$data_long
-      get_detailed_barplot(
-        data_long_now, col = 'level_name', fills = get_levels_fills(),
-        title = 'All levels', by_treatment = input$by_treatment)
+    output$plot_detailed = renderPlotly({
+      req(data_filt, input$by_treatment)
+
+      y = if (input$by_treatment) 1.1 else 1
+      annos = list(c(list(x = 0, y = y, text = 'All levels'), anno_base))
+      marg = if (input$by_treatment) list(t = 50) else NULL
+
+      fig = get_barplot_detailed(
+        data_filt()$data_long, col = 'level_name', fills = get_fills('full'),
+        by_treatment = input$by_treatment)
+      ggplotly(fig, tooltip = 'text') |>
+        layout(annotations = annos, margin = marg)
     }) |>
       bindCache(input$round_ids, input$by_treatment)
   })

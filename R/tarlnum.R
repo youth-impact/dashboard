@@ -10,21 +10,25 @@ tarlnum_ui = function(id) {
       uiOutput(ns('ui_counts')),
       width = 3
     ),
-
     mainPanel(
       tabsetPanel(
         tabPanel(
           title = 'Key Performance Indicators',
           h4('Overall'),
-          plotOutput(ns('plot_kpis_overall')),
-          h4('Trends')#,
-          # plotOutput(ns('plot_kpis_trends'))
+          plotlyOutput(ns('plot_kpis_overall')),
+          h4('Trends'),
+          plotlyOutput(
+            ns('plot_kpis_trends_ace'), width = '70%', height = '350px'),
+          plotlyOutput(
+            ns('plot_kpis_trends_beg'), width = '70%', height = '350px'),
+          plotlyOutput(
+            ns('plot_kpis_trends_imp'), width = '56%', height = '350px')
         ),
         tabPanel(
           title = 'Detailed Results',
           # h4('Overall'),
           br(),
-          plotOutput(ns('plot_detailed_overall'))
+          plotlyOutput(ns('plot_detailed'), width = '60%')
         ),
         tabPanel(
           title = 'Results by School',
@@ -36,7 +40,7 @@ tarlnum_ui = function(id) {
           br(),
           p(em('Based on filtering options other than delivery type.')),
           # h4('Overall'),
-          plotOutput(ns('plot_comp_overall'), height = '800px')
+          plotlyOutput(ns('plot_comp'), height = '800px')
         )
       ),
       width = 9
@@ -55,6 +59,10 @@ tarlnum_server = function(id, data_proc) {
       delivery_types_options = get_picker_options(
         noneSelectedText = 'Delivery types')
 
+      durations = sort(unique(data_proc()$data_long$duration))
+      durations_options = get_picker_options(
+        noneSelectedText = 'Durations (days)')
+
       regions = sort(unique(data_proc()$data_long$region))
       regions_options = get_picker_options(
         noneSelectedText = 'Regions')
@@ -70,6 +78,13 @@ tarlnum_server = function(id, data_proc) {
           selected = delivery_types,
           multiple = TRUE,
           options = delivery_types_options
+        ),
+        pickerInput(
+          inputId = ns('durations'),
+          choices = durations,
+          selected = durations,
+          multiple = TRUE,
+          options = durations_options
         ),
         pickerInput(
           inputId = ns('regions'),
@@ -88,21 +103,34 @@ tarlnum_server = function(id, data_proc) {
       )
     })
 
-    data_long_filt = reactive({
-      req(data_proc, input$delivery_types, input$regions, input$year_terms)
-      filt = CJ(
+    filt = reactive({
+      req(input$delivery_types, input$durations,
+          input$regions, input$year_terms)
+      CJ(
         delivery_type = input$delivery_types,
+        duration = as.integer(input$durations),
         region = input$regions,
         year_term = input$year_terms)
-      get_data_filtered(data_proc(), filt)$data_long[
+    })
+
+    data_filt = reactive({
+      req(data_proc, filt)
+      long = get_data_filtered(data_proc(), filt())$data_long[
         timepoint != 'Midline'][order(timepoint)]
+
+      wide = long[, .(
+        level_improved = diff(as.integer(student_level)) < 0),
+        by = .(student_id, year_term_num, year_term)] |>
+        set(j = 'timepoint', value = 'Baseline to Endline')
+
+      list(long = long[], wide = wide[])
     })
 
     output$ui_counts = renderUI({
-      req(data_long_filt)
+      req(data_filt)
       # is actually unique student tarl-round combos, e.g.,
       # the same person participating in two years would get counted twice
-      counts = data_long_filt()[, .(
+      counts = data_filt()$long[, .(
         n_students = uniqueN(student_id)), keyby = delivery_type]
       counts[, delivery_type := gsub(' Delivery$', '', delivery_type)]
       n_total = scales::label_comma()(sum(counts$n_students))
@@ -115,94 +143,190 @@ tarlnum_server = function(id, data_proc) {
       em(txt)
     })
 
-    output$plot_kpis_overall = renderPlot({
-      req(data_long_filt)
+    output$plot_kpis_overall = renderPlotly({
+      req(data_filt)
 
-      data_long_now = data_long_filt()
-      # levels of student_level go from Division to Beginner, so diff < 0
-      data_wide = data_long_now[, .(
-        level_improved = diff(as.integer(student_level)) < 0),
-        by = student_id]
-      set(data_wide, j = 'timepoint', value = 'Baseline to Endline')
+      fig = get_barplot_summary(
+        data_filt()$long, col = 'level_ace', fills = get_fills('ace'))
+      fig_ace = ggplotly(fig, tooltip = 'text')
 
-      p_div = get_summary_barplot(
-        data_long_now, col = 'level_division', fills = c('#a6cee3', '#1f78b4'),
-        title = 'Numeracy: division level')
-
-      p_beg = get_summary_barplot(
-        data_long_now, col = 'level_beginner', fills = c('#fb9a99', '#e31a1c'),
-        title = 'Innumeracy: beginner level') +
+      fig = get_barplot_summary(
+        data_filt()$long, col = 'level_beginner',
+        fills = get_fills('beginner')) +
         theme(axis.title.y = element_blank())
+      fig_beg = ggplotly(fig, tooltip = 'text')
 
-      p_imp = get_summary_barplot(
-        data_wide, col = 'level_improved', fills = '#33a02c',
-        title = 'Learned a new\noperation', y_lims = c(0, 1)) +
+      fig = get_barplot_summary(
+        data_filt()$wide, col = 'level_improved', fills = get_fills('improved'),
+        y_lims = c(0, 100)) +
         theme(axis.title.y = element_blank())
+      fig_imp = ggplotly(fig, tooltip = 'text')
 
-      # use cowplot::plot_grid() to arrange plots
-      plot_grid(
-        p_div, p_beg, p_imp, nrow = 1L, align = 'h', axis = 'tb',
-        rel_widths = c(1, 0.95, 0.7))
-    }) |>
-      bindCache(input$delivery_types, input$regions, input$year_terms)
+      annos = list(
+        list(x = 0, y = 1, text = 'Numeracy: division level'),
+        list(x = 0.4, y = 1, text = 'Innumeracy: beginner level'),
+        list(x = 0.77, y = 1, text = 'Improved at least\none level'))
+      annos = lapply(annos, \(z) c(z, anno_base))
 
-    output$plot_detailed_overall = renderPlot({
-      req(data_long_filt)
-      get_detailed_barplot(
-        data_long_filt(), col = 'student_level', fills = get_levels_fills(),
-        title = 'All levels')
+      subplot(
+        fig_ace, fig_beg, fig_imp, widths = c(0.37, 0.37, 0.26), margin = 0.035,
+        titleY = TRUE) |>
+        layout(annotations = annos, margin = list(t = 55))
     }) |>
-      bindCache(input$delivery_types, input$regions, input$year_terms)
+      bindCache(
+        input$delivery_types, input$durations, input$regions, input$year_terms)
+
+    data_trend = reactive({
+      req(data_filt)
+
+      long = data_filt()$long[, .(
+        n_total = .N, n_ace = sum(level_ace), n_beg = sum(level_beginner)),
+        keyby = .(year_term_num, year_term, timepoint)]
+      long[, pct_ace := 100 * n_ace / n_total]
+      long[, pct_beg := 100 * n_beg / n_total]
+
+      long[, label_ace := glue('{year_term}\n{timepoint}', .envir = .SD)]
+      long[, label_beg := glue('{year_term}\n{timepoint}', .envir = .SD)]
+
+      wide = data_filt()$wide[, .(
+        n_total = .N, n_imp = sum(level_improved)),
+        keyby = .(year_term_num, year_term, timepoint)]
+      wide[, pct_imp := 100 * n_imp / n_total]
+
+      wide[, label_imp := glue('{year_term}', .envir = .SD)]
+
+      list(long = long[], wide = wide[])
+    })
+
+    output$plot_kpis_trends_ace = renderPlotly({
+      req(data_trend)
+      fig = get_trend_plot(
+        data_trend()$long, x_col = 'year_term_num', y_col = 'pct_ace',
+        text_col = 'label_ace', fills = get_fills('ace'), shapes = c(24, 25),
+        size = 3, stroke = 0)
+      anno = list(x = 0, y = 1, text = 'Numeracy: division level')
+      ggplotly(fig, tooltip = 'text') |>
+        layout(annotations = c(anno, anno_base), margin = list(t = 30))
+    }) |>
+      bindCache(
+        input$delivery_types, input$durations, input$regions, input$year_terms)
+
+    output$plot_kpis_trends_beg = renderPlotly({
+      req(data_trend)
+      fig = get_trend_plot(
+        data_trend()$long, x_col = 'year_term_num', y_col = 'pct_beg',
+        text_col = 'label_beg', fills = get_fills('beginner'),
+        shapes = c(24, 25), size = 3, stroke = 0)
+      anno = list(x = 0, y = 1, text = 'Innumeracy: beginner level')
+      ggplotly(fig, tooltip = 'text') |>
+        layout(annotations = c(anno, anno_base), margin = list(t = 30))
+    }) |>
+      bindCache(
+        input$delivery_types, input$durations, input$regions, input$year_terms)
+
+    output$plot_kpis_trends_imp = renderPlotly({
+      fig = ggplot(
+        data_trend()$wide,
+        aes(x = year_term_num, y = pct_imp, text = label_imp)) +
+        geom_point(
+          size = 2.5, shape = 21, stroke = 0, fill = get_fills('improved')) +
+        labs(x = 'Year', y = 'Share of students (%)') +
+        scale_x_continuous(minor_breaks = NULL) +
+        scale_y_continuous(labels = label_percent_func, limits = c(0, 100))
+      anno = list(x = 0, y = 1, text = 'Improved at least one level')
+      ggplotly(fig, tooltip = 'text') |>
+        layout(annotations = c(anno, anno_base), margin = list(t = 30))
+    }) |>
+      bindCache(
+        input$delivery_types, input$durations, input$regions, input$year_terms)
+
+    output$plot_detailed = renderPlotly({
+      req(data_filt)
+      fig = get_barplot_detailed(
+        data_filt()$long, col = 'student_level', fills = get_fills('full'))
+      anno = list(c(list(x = 0, y = 1, text = 'All levels'), anno_base))
+      ggplotly(fig, tooltip = 'text') |>
+        layout(annotations = c(anno, anno_base))
+    }) |>
+      bindCache(
+        input$delivery_types, input$durations, input$regions, input$year_terms)
 
     # TODO: tables for numeracy stats by school
 
-    data_long_comp = reactive({
-      req(data_proc, input$regions, input$year_terms)
-      filt = CJ(
-        region = input$regions,
-        year_term = input$year_terms)
-      d = get_data_filtered(data_proc(), filt)$data_long
-      d = d[timepoint != 'Midline'][order(timepoint)]
-      d[, treatment_id := delivery_type]
-      d[, treatment_name := delivery_type][]
+    filt_comp = reactive({
+      unique(filt()[, !'delivery_type'])
     })
 
-    output$plot_comp_overall = renderPlot({
-      req(data_long_comp)
+    data_comp = reactive({
+      req(data_proc, filt_comp)
+      long = get_data_filtered(data_proc(), filt_comp())$data_long
+      long = long[timepoint != 'Midline'][order(timepoint)]
+      long[, treatment_id := delivery_type]
+      long[, treatment_name := delivery_type]
 
-      data_long_now = data_long_comp()
       # levels of student_level go from Division to Beginner, so diff < 0
-      data_wide = data_long_now[, .(
+      wide = long[, .(
         treatment_id, treatment_name,
-        level_improved = diff(as.integer(student_level)) < 0),
-        by = student_id]
-      set(data_wide, j = 'timepoint', value = 'Baseline\nto Endline')
+        student_level_diff = -diff(as.integer(student_level))),
+        by = student_id] |>
+        set(j = 'timepoint', value = 'Baseline to Endline')
+      wide[, level_improved := student_level_diff > 0]
 
-      p_div = get_summary_barplot(
-        data_long_now, col = 'level_division', fills = c('#a6cee3', '#1f78b4'),
-        title = 'Numeracy: division level', by_treatment = TRUE)
+      list(long = long[], wide = wide[])
+    })
 
-      p_beg = get_summary_barplot(
-        data_long_now, col = 'level_beginner', fills = c('#fb9a99', '#e31a1c'),
-        title = 'Innumeracy: beginner level', by_treatment = TRUE) +
+    output$plot_comp = renderPlotly({
+      req(data_comp)
+
+      data_wide_summary = data_comp()$wide[, .(
+        diff_mean = mean(student_level_diff),
+        diff_sd = sd(student_level_diff)),
+        keyby = .(treatment_id, timepoint)]
+      data_wide_summary[, label := glue(
+        'Mean: {round(diff_mean, 1)}\nSD: {round(diff_sd, 1)}', .envir = .SD)]
+
+      fig = get_barplot_summary(
+        data_comp()$long, col = 'level_ace', fills = get_fills('ace'),
+        by_treatment = TRUE)
+      fig_ace = ggplotly(fig, tooltip = 'text')
+
+      fig = get_barplot_summary(
+        data_comp()$long, col = 'level_beginner', fills = get_fills('beginner'),
+        by_treatment = TRUE) +
         theme(axis.title.y = element_blank())
+      fig_beg = ggplotly(fig, tooltip = 'text')
 
-      p_imp = get_summary_barplot(
-        data_wide, col = 'level_improved', fills = '#33a02c',
-        title = 'Learned a new operation', by_treatment = TRUE)
+      fig = get_barplot_summary(
+        data_comp()$wide, col = 'level_improved', fills = get_fills('improved'),
+        by_treatment = TRUE, y_lims = c(0, 100))
+      fig_imp = ggplotly(fig, tooltip = 'text')
 
-      # use cowplot::plot_grid() to arrange plots
-      p_div_beg = plot_grid(
-        p_div, p_beg, nrow = 1L, align = 'h', axis = 'tb',
-        rel_widths = c(1, 0.95))
+      fig = ggplot(data_wide_summary) +
+        facet_wrap(vars(treatment_id), nrow = 1L) +
+        geom_pointrange(
+          aes(x = timepoint, y = diff_mean, ymin = diff_mean - diff_sd,
+              ymax = diff_mean + diff_sd, text = label),
+          size = 3, linewidth = 2) +
+        labs(y = 'Number of levels improved') +
+        theme(axis.title.x = element_blank())
+      fig_prog = ggplotly(fig, tooltip = 'text')
 
-      p_imp_null = plot_grid(
-        p_imp, grid::nullGrob(), nrow = 1L, rel_widths = c(1, 1))
+      annos = list(
+        list(x = 0, y = 1.04, text = 'Numeracy: division level'),
+        list(x = 0.55, y = 1.04, text = 'Innumeracy: beginner level'),
+        list(x = 0, y = 0.47, text = 'Improved at least one level'),
+        list(x = 0.55, y = 0.47, text = 'Progress toward numeracy'))
+      annos = lapply(annos, \(z) c(z, anno_base))
 
-      plot_grid(p_div_beg, p_imp_null, ncol = 1L)
+      # yaxis_base = list(font = list(size = 20))
+      #     yaxis = c(yaxis_base, list(title = 'Share of students (%)')),
+      #     yaxis2 = c(yaxis_base, list(title = 'Number of levels improved')))
 
-      # TODO: plot student_level_diff?
+      sp1 = subplot(fig_ace, fig_beg, margin = 0.05, titleY = TRUE)
+      sp2 = subplot(fig_imp, fig_prog, margin = 0.05, titleY = TRUE)
+      subplot(sp1, sp2, nrows = 2L, margin = 0.07, titleY = TRUE) |>
+        layout(annotations = annos, margin = list(t = 50))
     }) |>
-      bindCache(input$regions, input$year_terms)
+      bindCache(input$durations, input$regions, input$year_terms)
   })
 }
