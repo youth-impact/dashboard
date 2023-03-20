@@ -118,11 +118,10 @@ get_round_text = function(data_proc) {
   })
 
   round_text = tagList(
-    overview_text, h5('Treatments'),
+    br(), overview_text, h5('Treatments'),
     unlist(treatment_text, recursive = FALSE),
     em(glue('{n_students} students in total ',
-            '(ascertained at baseline and endline).')),
-    br(), br())
+            '(ascertained at baseline and endline).')), br())
 }
 
 ########################################

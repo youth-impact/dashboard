@@ -1,27 +1,49 @@
-#
+# TODO
 
-connected_kpis_ui = function(id) {
+connected_ui = function(id) {
   ns = NS(id)
 
-  tabPanel(
-    title = 'Key Performance Indicators',
-    sidebarLayout(
-      sidebarPanel(
-        uiOutput(ns('ui_input')),
-        width = 3
+  sidebarLayout(
+    sidebarPanel(
+      h5('Display options'),
+      uiOutput(ns('ui_input')),
+      # uiOutput(ns('ui_counts')),
+      width = 3
+    ),
+    mainPanel(
+      tabsetPanel(
+        tabPanel(
+          title = 'Key Outcomes',
+          uiOutput(ns('round_text_kpis')),
+          h4('Overall'),
+          plotOutput(ns('plot_kpis_overall'), height = '800px')#,
+          # h4('Trends'),
+          # plotlyOutput(
+          #   ns('plot_kpis_trends_ace'), width = '70%', height = '350px'),
+          # plotlyOutput(
+          #   ns('plot_kpis_trends_beg'), width = '70%', height = '350px'),
+          # plotlyOutput(
+          #   ns('plot_kpis_trends_imp'), width = '56%', height = '350px')
+        ),
+        tabPanel(
+          title = 'Detailed Outcomes',
+          uiOutput(ns('round_text_detailed')),
+          br(),
+          plotlyOutput(ns('plot_detailed'))
+        )
       ),
-      mainPanel(
-        br(),
-        uiOutput(ns('round_text')),
-        plotOutput(ns('plot_kpis'), height = '800px'),
-        width = 9
-      )
+      width = 9
     )
   )
 }
 
-connected_kpis_server = function(id, data_proc) {
+connected_server = function(id, data_raw) {
   moduleServer(id, function(input, output, session) {
+
+    data_proc = reactive({
+      req(data_raw)
+      get_data_connected(data_raw())
+    })
 
     # A/B detailed results for a single round
     output$ui_input = renderUI({
@@ -53,13 +75,13 @@ connected_kpis_server = function(id, data_proc) {
     })
 
     # narrative text for the selected round
-    output$round_text = renderUI({
+    output$round_text_kpis = output$round_text_detailed = renderUI({
       req(data_filt)
       if (isTRUE(input$show_narrative)) get_round_text(data_filt())
     })
 
     # plot for KPIs
-    output$plot_kpis = renderPlot({
+    output$plot_kpis_overall = renderPlot({
       req(data_filt)
 
       data_wide = copy(data_filt()$data_wide)
@@ -92,6 +114,22 @@ connected_kpis_server = function(id, data_proc) {
         fig_imp, grid::nullGrob(), nrow = 1L, rel_widths = c(1, 1))
 
       plot_grid(fig_ace_beg, fig_imp_null, ncol = 1L)
+    }) |>
+      bindCache(input$round_ids, input$by_treatment)
+
+    # plot for A/B detailed results
+    output$plot_detailed = renderPlotly({
+      req(data_filt, !is.null(input$by_treatment))
+
+      y = if (input$by_treatment) 1.1 else 1
+      anno = list(x = 0, y = y, text = 'All levels')
+      marg = if (input$by_treatment) list(t = 50) else NULL
+
+      fig = get_barplot_detailed(
+        data_filt()$data_long, col = 'level_name', fills = get_fills('full'),
+        by_treatment = input$by_treatment)
+      ggplotly(fig, tooltip = 'text') |>
+        layout(annotations = c(anno, anno_base), margin = marg)
     }) |>
       bindCache(input$round_ids, input$by_treatment)
   })

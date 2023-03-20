@@ -5,7 +5,7 @@ tarlnum_ui = function(id) {
 
   sidebarLayout(
     sidebarPanel(
-      h5('Filtering options'),
+      h5('Display options'),
       uiOutput(ns('ui_input')),
       uiOutput(ns('ui_counts')),
       width = 3
@@ -13,7 +13,7 @@ tarlnum_ui = function(id) {
     mainPanel(
       tabsetPanel(
         tabPanel(
-          title = 'Key Performance Indicators',
+          title = 'Key Outcomes',
           h4('Overall'),
           plotlyOutput(ns('plot_kpis_overall')),
           h4('Trends'),
@@ -25,13 +25,12 @@ tarlnum_ui = function(id) {
             ns('plot_kpis_trends_imp'), width = '56%', height = '350px')
         ),
         tabPanel(
-          title = 'Detailed Results',
-          # h4('Overall'),
+          title = 'Detailed Outcomes',
           br(),
           plotlyOutput(ns('plot_detailed'), width = '60%')
         ),
         tabPanel(
-          title = 'Results by School',
+          title = 'Outcomes by School',
           br(),
           p('TBD')
         ),
@@ -39,7 +38,6 @@ tarlnum_ui = function(id) {
           title = 'Comparing Direct and Govt. Delivery',
           br(),
           p(em('Based on filtering options other than delivery type.')),
-          # h4('Overall'),
           plotlyOutput(ns('plot_comp'), height = '800px')
         )
       ),
@@ -48,8 +46,13 @@ tarlnum_ui = function(id) {
   )
 }
 
-tarlnum_server = function(id, data_proc) {
+tarlnum_server = function(id, data_raw) {
   moduleServer(id, function(input, output, session) {
+
+    data_proc = reactive({
+      req(data_raw)
+      get_data_tarlnum(data_raw())
+    })
 
     output$ui_input = renderUI({
       req(data_proc)
