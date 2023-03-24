@@ -1,16 +1,17 @@
 get_data_raw = function(folder_url) {
   files = get_file_metadata(folder_url)
+  files[, drive_resource := NULL]
 
   # round trip to simplify all.equal
   local_file = withr::local_tempfile()
-  fwrite(files[, !'drive_resource'], local_file)
-  files = fread(local_file)
+  fwrite(files, local_file)
+  files_new = fread(local_file)
   cache_dir = '_cache'
 
   metadata_path = '_file_metadata.csv'
   if (file.exists(metadata_path)) {
     files_old = fread(metadata_path)
-    files_equal = all.equal(files, files_old)
+    files_equal = all.equal(files_new, files_old)
     paths_exist = (length(files_old$path) > 0) &&
       all(file.exists(files_old$path))
   } else {
@@ -25,7 +26,7 @@ get_data_raw = function(folder_url) {
     dir.create(cache_dir)
     local_paths = sapply(seq_len(nrow(files)), \(i) {
       local_path = file.path(cache_dir, files$name[i])
-      drive_download(as_id(files$id[i]), local_path, overwrite = TRUE)
+      drive_download(files$id[i], local_path, overwrite = TRUE)
       local_path
     })
     files[, path := local_paths]
