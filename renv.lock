@@ -1,6 +1,6 @@
 {
   "R": {
-    "Version": "4.2.2",
+    "Version": "4.2.3",
     "Repositories": [
       {
         "Name": "CRAN",
@@ -15,6 +15,22 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "c5c9851b00b014cc358ff418741a9784"
+    },
+    "DT": {
+      "Package": "DT",
+      "Version": "0.27",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "crosstalk",
+        "htmltools",
+        "htmlwidgets",
+        "jquerylib",
+        "jsonlite",
+        "magrittr",
+        "promises"
+      ],
+      "Hash": "3444e6ed78763f9f13aaa39f2481eb34"
     },
     "MASS": {
       "Package": "MASS",

@@ -1,21 +1,72 @@
 get_data_raw = function(folder_url) {
   files = get_file_metadata(folder_url)
 
+  # round trip to simplify all.equal
+  local_file = withr::local_tempfile()
+  fwrite(files[, !'drive_resource'], local_file)
+  files = fread(local_file)
+  cache_dir = '_cache'
+
+  metadata_path = '_file_metadata.csv'
+  files_old = if (file.exists(metadata_path)) {
+    fread(metadata_path)
+  } else {
+    data.table()
+  }
+
+  cols = c('name', 'modified_time', 'id')
+  files_equal = all.equal(files[, ..cols], files_old[, ..cols])
+  paths_exist = (length(files_old$path) > 0) && all(file.exists(files_old$path))
+
+  if (isTRUE(files_equal) && paths_exist) {
+    files[, path := files_old$path]
+  } else {
+    if (dir.exists(cache_dir)) unlink(cache_dir, recursive = TRUE)
+    dir.create(cache_dir)
+    local_paths = sapply(seq_len(nrow(files)), \(i) {
+      local_path = file.path(cache_dir, files$name[i])
+      drive_download(as_id(files$id[i]), local_path, overwrite = TRUE)
+      local_path
+    })
+    files[, path := local_paths]
+    fwrite(files, metadata_path)
+  }
+
   data_raw = lapply(seq_len(nrow(files)), \(i) {
-    local_file = withr::local_tempfile()
-    drive_download(files$id[i], local_file)
     if (endsWith(files$name[i], '.csv')) {
-      fread(local_file)
+      fread(files$path[i])
     } else if (endsWith(files$name[i], '.dta')) {
-      setDT(haven::read_dta(local_file))
+      setDT(haven::read_dta(files$path[i]))
     } else {
       NULL
     }
   })
 
   names(data_raw) = tools::file_path_sans_ext(files$name)
-  data_raw$`_file_metadata` = files[, !'drive_resource']
+  data_raw$`_file_metadata` = files
   data_raw # list of data.tables
+}
+
+# load raw data from the Google Drive folder
+get_data_raw_server = function(id, folder_url) {
+  moduleServer(id, function(input, output, session) {
+
+    # reactive data source makes sure app has latest data from Google Drive
+    data_raw = reactivePoll(
+      intervalMillis = 1000 * 60 * 60, # 1 hour
+      session = session,
+
+      # use file names and modification times to
+      # determine if underlying data have changed
+      checkFunc = \() {
+        files = get_file_metadata(folder_url)
+        paste(files$name, files$modified_time, collapse = ' __ ')
+      },
+
+      # download and read files in the given folder
+      valueFunc = \() get_data_raw(folder_url)
+    )
+  })
 }
 
 get_data_connected = function(data_raw, keep_missing = c()) {
@@ -94,32 +145,41 @@ get_data_tarlnum = function(data_raw, keep_missing = 'Midline') {
   setcolorder(data_long, 'timepoint', before = 'student_level')
 
   data_long[, term := as.integer(str_extract(term, '[0-9]+$'))]
-  data_long[, delivery_type := paste(fifelse(
-    delivery_type == 'Model School', 'Direct', 'Government'), 'Delivery')]
+  data_long[, delivery_type := fifelse(
+    delivery_type == 'Model School', 'Direct', 'Government')]
 
-  # data_long[, duration := paste(str_extract(duration, '^[0-9]+'), 'days')]
   data_long[, duration := as.integer(str_extract(imp_length, '^[0-9]+'))]
   data_long[, imp_length := NULL]
 
   data_long[, timepoint := factor(
     timepoint, c('Baseline', 'Midline', 'Endline'))]
-  data_long[, student_level := factor(
+  data_long[, student_level_fct := factor(
     student_level, levels(numeracy_levels$level_name))]
   data_long[, student_id := paste(
-    year, term, phase, delivery_type, duration, region, school_name, uid_s,
-    sep = '|')]
+    year, term, delivery_type, duration, region, school_name, uid_s, sep = '|')]
+  data_long[, student_level := NULL]
+  data_long[, student_level_int := as.integer(student_level_fct)]
 
+  # filter rows missing duration
+  data_long = data_long[!is.na(duration)]
+
+  # filter data missing certain timepoints
   timepoints_reqd = setdiff(levels(data_long$timepoint), keep_missing)
   data_long = data_long[
-    , if (all(timepoints_reqd %in% timepoint[!is.na(student_level)])) .SD,
+    , if (all(timepoints_reqd %in% timepoint[!is.na(student_level_int)])) .SD,
     by = student_id]
+
+  # filter midline data
+  data_long = data_long[timepoint != 'Midline']
 
   data_long[, year_term := paste0(year, ' T', term)]
   data_long[, year_term_num := round(year + (term - 1) / 3, 2)]
-  data_long[, level_beginner := student_level == 'Beginner']
-  data_long[, level_ace := student_level == 'Division']
+  data_long[, level_beginner := student_level_fct == 'Beginner']
+  data_long[, level_ace := student_level_fct == 'Division']
 
-  setkey(data_long)
+  data_wide = 0
+
+  setkey(data_long) # important for diff student_level
   list(data_long = data_long[], numeracy_levels = numeracy_levels)
 }
 
@@ -127,33 +187,11 @@ get_data_filtered = function(x, filt) {
   y = lapply(x, \(d) {
     if (any(colnames(filt) %in% colnames(d))) {
       by_cols = intersect(colnames(filt), colnames(d))
-      merge(d, filt, by = by_cols, allow.cartesian = TRUE)
+      merge(d, filt, by = by_cols, sort = FALSE, allow.cartesian = TRUE)
     } else {
       copy(d)
     }
   })
   names(y) = names(x)
   y
-}
-
-# load raw data from the Google Drive folder
-get_data_raw_server = function(id, folder_url) {
-  moduleServer(id, function(input, output, session) {
-
-    # reactive data source makes sure app has latest data from Google Drive
-    data_raw = reactivePoll(
-      intervalMillis = 1000 * 60 * 60, # 1 hour
-      session = session,
-
-      # use file names and modification times to
-      # determine if underlying data have changed
-      checkFunc = \() {
-        files = get_file_metadata(folder_url)
-        paste(files$name, files$modified_time, collapse = ' __ ')
-      },
-
-      # download and read files in the given folder
-      valueFunc = \() get_data_raw(folder_url)
-    )
-  })
 }

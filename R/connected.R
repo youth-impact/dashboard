@@ -3,6 +3,9 @@
 connected_ui = function(id) {
   ns = NS(id)
 
+  ht = 300
+  height = glue('{ht}px')
+
   sidebarLayout(
     sidebarPanel(
       h5('Display options'),
@@ -16,7 +19,7 @@ connected_ui = function(id) {
           title = 'Key Outcomes',
           uiOutput(ns('round_text_kpis')),
           h4('Overall'),
-          plotOutput(ns('plot_kpis_overall'), height = '800px')#,
+          plotOutput(ns('plot_kpis_overall'), height = glue('{ht * 2}px'))#,
           # h4('Trends'),
           # plotlyOutput(
           #   ns('plot_kpis_trends_ace'), width = '70%', height = '350px'),
@@ -29,7 +32,7 @@ connected_ui = function(id) {
           title = 'Detailed Outcomes',
           uiOutput(ns('round_text_detailed')),
           br(),
-          plotlyOutput(ns('plot_detailed'))
+          plotlyOutput(ns('plot_detailed'), height = glue('{ht + 50}px'))
         )
       ),
       width = 9
@@ -102,7 +105,7 @@ connected_server = function(id, data_raw) {
 
       fig_imp = get_barplot_summary(
         data_wide, col = 'level_improved', fills = get_fills('improved'),
-        title = 'Improved at least one level',
+        title = 'Improved at least one level', y_lims = c(0, 100),
         by_treatment = input$by_treatment)
 
       # use cowplot::plot_grid() to arrange plots

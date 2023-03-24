@@ -9,12 +9,13 @@ library('plotly')
 library('shiny')
 library('shinyWidgets')
 library('stringr')
+library('DT') # load after shiny for dataTableOutput and renderDataTable
 
 # set global ggplot theme
 theme_set(
   theme_bw() +
     theme(
-      text = element_text(size = 16),
+      text = element_text(size = 15),
       # axis.title.y = element_text(size = 18),
       # plot.title = element_text(size = 18),
       # legend.title = element_text(size = 18),
@@ -28,7 +29,7 @@ thematic::thematic_shiny()
 label_percent_func = scales::label_percent(scale = 1, accuracy = 1)
 
 anno_base = list(
-  font = list(size = 20), showarrow = FALSE, align = 'left',
+  font = list(size = 18), showarrow = FALSE, align = 'left',
   xref = 'paper', yref = 'paper', xanchor = 'left', yanchor = 'bottom')
 
 ########################################
@@ -126,6 +127,19 @@ get_round_text = function(data_proc) {
 
 ########################################
 
+get_entity_labels = function(
+    n, pct = NULL, pre = NULL, suf = NULL, entity = 'students') {
+  n_label = scales::label_comma()(n)
+  ans = glue('{n_label} {entity}')
+  if (!is.null(pct)) {
+    pct_label = label_percent_func(pct)
+    ans = glue('{ans} ({pct_label})')
+  }
+  if (!is.null(pre)) ans = glue('{pre}\n{ans}')
+  if (!is.null(suf)) ans = glue('{ans}\n{suf}')
+  ans
+}
+
 get_barplot_data = function(data, x_col, col, by_treatment, percent) {
   by1 = c(x_col, col)
   if (by_treatment) by1 = c('treatment_id', 'treatment_name', by1)
@@ -137,9 +151,7 @@ get_barplot_data = function(data, x_col, col, by_treatment, percent) {
   quant_col = if (percent) 'pct_students' else 'n_students'
   set(data_now, j = 'quant', value = data_now[[quant_col]])
 
-  data_now[, n_label := scales::label_comma()(n_students)]
-  data_now[, pct_label := label_percent_func(pct_students)]
-  data_now[, label := glue('{n_label} students ({pct_label})', .envir = .SD)]
+  data_now[, label := get_entity_labels(n_students, pct_students)]
 }
 
 #' Get summary barplot for outcomes data
@@ -223,15 +235,35 @@ get_barplot_detailed = function(
   p
 }
 
-get_trend_plot = function(data, x_col, y_col, text_col, fills, shapes, ...) {
-  ggplot(data, aes(x = .data[[x_col]], y = .data[[y_col]])) +
-    geom_point(
-      aes(fill = timepoint, shape = timepoint, text = .data[[text_col]]), ...) +
-    labs(x = 'Year', y = 'Share of students (%)', fill = NULL, shape = NULL) +
-    scale_x_continuous(minor_breaks = NULL) +
-    scale_y_continuous(labels = label_percent_func) +
-    scale_fill_manual(values = fills) +
-    scale_shape_manual(values = shapes)
+get_trend_plot = function(
+    data, x_col, y_col, text_col, fill = NULL, shape = NULL, y_lims = NULL,
+    percent = TRUE, ...) {
+
+  p = ggplot(
+    data, aes(x = .data[[x_col]], y = .data[[y_col]], text = .data[[text_col]]))
+
+  p = if (length(fill) == 1L) {
+    p + geom_point(fill = fill, shape = shape, ...)
+  } else {
+    p + geom_point(aes(fill = timepoint, shape = timepoint), ...) +
+      scale_fill_manual(values = fill) +
+      scale_shape_manual(values = shape)
+  }
+
+  if (percent) {
+    y_lab = 'Share of students (%)'
+    y_labs = label_percent_func
+  } else {
+    y_lab = 'Number of students'
+    y_labs = waiver()
+  }
+
+  p = p +
+    labs(x = 'Year', y = y_lab, fill = NULL, shape = NULL) +
+    scale_x_continuous(
+      breaks = scales::breaks_extended(), minor_breaks = NULL) +
+    scale_y_continuous(labels = y_labs, limits = y_lims)
+  p
 }
 
 ########################################
@@ -259,6 +291,7 @@ get_count_comma = function(data, col = 'student_id') {
 get_fills = function(type, palette = 'Blues') {
   switch(
     type,
+    total = 'black',
     beginner = c('#fb9a99', '#e31a1c'),
     ace = c('#a6cee3', '#1f78b4'),
     improved = '#33a02c',
