@@ -8,15 +8,15 @@ get_data_raw = function(folder_url) {
   cache_dir = '_cache'
 
   metadata_path = '_file_metadata.csv'
-  files_old = if (file.exists(metadata_path)) {
-    fread(metadata_path)
+  if (file.exists(metadata_path)) {
+    files_old = fread(metadata_path)
+    files_equal = all.equal(files, files_old)
+    paths_exist = (length(files_old$path) > 0) &&
+      all(file.exists(files_old$path))
   } else {
-    data.table()
+    files_equal = FALSE
+    paths_exist = FALSE
   }
-
-  cols = c('name', 'modified_time', 'id')
-  files_equal = all.equal(files[, ..cols], files_old[, ..cols])
-  paths_exist = (length(files_old$path) > 0) && all(file.exists(files_old$path))
 
   if (isTRUE(files_equal) && paths_exist) {
     files[, path := files_old$path]
