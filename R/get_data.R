@@ -11,7 +11,7 @@ get_data_raw = function(folder_url) {
   metadata_path = '_file_metadata.csv'
   if (file.exists(metadata_path)) {
     files_old = fread(metadata_path)
-    files_equal = all.equal(files_new, files_old)
+    files_equal = all.equal(files_new, files_old[, !'path'])
     paths_exist = (length(files_old$path) > 0) &&
       all(file.exists(files_old$path))
   } else {
@@ -83,7 +83,8 @@ get_data_connected = function(data_raw, keep_missing = c()) {
   # use factors to ensure proper ordering in plots
   arms[, treatment_name := forcats::fct_reorder(
     treatment_name, treatment_id, .fun = \(x) x[1L])]
-  numeracy_levels[, level_name := factor(level_name, rev(level_name))]
+  # numeracy_levels[, level_name := factor(level_name, rev(level_name))]
+  numeracy_levels[, level_name := factor(level_name, level_name)]
 
   # basic renaming and selecting particular columns
   data_wide = data_wide[, .(
@@ -139,7 +140,8 @@ get_data_tarlnum = function(data_raw, keep_missing = 'Midline') {
   numeracy_levels = copy(data_raw$numeracy_levels)
 
   data_long = unique(data_long)[uid_s != '']
-  numeracy_levels[, level_name := factor(level_name, rev(level_name))]
+  # numeracy_levels[, level_name := factor(level_name, rev(level_name))]
+  numeracy_levels[, level_name := factor(level_name, level_name)]
 
   setnames(data_long, 'round', 'timepoint')
   setnames(data_long, \(x) str_replace(x, '^stu_', 'student_'))
@@ -161,16 +163,16 @@ get_data_tarlnum = function(data_raw, keep_missing = 'Midline') {
   data_long[, student_level := NULL]
   data_long[, student_level_int := as.integer(student_level_fct)]
 
-  # filter rows missing duration
+  # remove rows missing duration
   data_long = data_long[!is.na(duration)]
 
-  # filter data missing certain timepoints
+  # remove data missing certain timepoints
   timepoints_reqd = setdiff(levels(data_long$timepoint), keep_missing)
   data_long = data_long[
     , if (all(timepoints_reqd %in% timepoint[!is.na(student_level_int)])) .SD,
     by = student_id]
 
-  # filter midline data
+  # remove rows for midline
   data_long = data_long[timepoint != 'Midline']
 
   data_long[, year_term := paste0(year, ' T', term)]
@@ -178,10 +180,8 @@ get_data_tarlnum = function(data_raw, keep_missing = 'Midline') {
   data_long[, level_beginner := student_level_fct == 'Beginner']
   data_long[, level_ace := student_level_fct == 'Division']
 
-  data_wide = 0
-
-  setkey(data_long) # important for diff student_level
-  list(data_long = data_long[], numeracy_levels = numeracy_levels)
+  setkey(data_long) # important this includes timepoint for diff student_level
+  list(data_long = data_long[])
 }
 
 get_data_filtered = function(x, filt) {
@@ -195,4 +195,12 @@ get_data_filtered = function(x, filt) {
   })
   names(y) = names(x)
   y
+}
+
+get_data_wide = function(data_long, by_cols, time_col = 'timepoint') {
+  data_wide = data_long[, .(
+    student_level_diff = diff(student_level_int)),
+    keyby = c('student_id', by_cols)]
+  set(data_wide, j = 'level_improved', value = data_wide$student_level_diff > 0)
+  set(data_wide, j = time_col, value = 'Baseline to Endline')[]
 }

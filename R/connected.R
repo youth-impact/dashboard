@@ -97,26 +97,26 @@ connected_server = function(id, data_raw) {
         data_long, col = 'level_ace', fills = get_fills('ace'),
         title = 'Numeracy: division level', by_treatment = input$by_treatment)
 
-      fig_beg = get_barplot_summary(
+      fig_beginner = get_barplot_summary(
         data_long, col = 'level_beginner', fills = get_fills('beginner'),
         title = 'Innumeracy: beginner level',
         by_treatment = input$by_treatment) +
         theme(axis.title.y = element_blank())
 
-      fig_imp = get_barplot_summary(
+      fig_improved = get_barplot_summary(
         data_wide, col = 'level_improved', fills = get_fills('improved'),
         title = 'Improved at least one level', y_lims = c(0, 100),
         by_treatment = input$by_treatment)
 
       # use cowplot::plot_grid() to arrange plots
-      fig_ace_beg = plot_grid(
-        fig_ace, fig_beg, nrow = 1L, align = 'h', axis = 'tb',
+      fig_ace_beginner = plot_grid(
+        fig_ace, fig_beginner, nrow = 1L, align = 'h', axis = 'tb',
         rel_widths = c(1, 0.95))
 
-      fig_imp_null = plot_grid(
-        fig_imp, grid::nullGrob(), nrow = 1L, rel_widths = c(1, 1))
+      fig_improved_null = plot_grid(
+        fig_improved, grid::nullGrob(), nrow = 1L, rel_widths = c(1, 1))
 
-      plot_grid(fig_ace_beg, fig_imp_null, ncol = 1L)
+      plot_grid(fig_ace_beginner, fig_improved_null, ncol = 1L)
     }) |>
       bindCache(input$round_ids, input$by_treatment)
 
@@ -124,15 +124,16 @@ connected_server = function(id, data_raw) {
     output$plot_detailed = renderPlotly({
       req(data_filt, !is.null(input$by_treatment))
 
-      y = if (input$by_treatment) 1.1 else 1
+      y = if (input$by_treatment) 1.12 else 1
       anno = list(x = 0, y = y, text = 'All levels')
-      marg = if (input$by_treatment) list(t = 50) else NULL
+      marj = if (input$by_treatment) list(t = 50) else NULL
+      lej = list(tracegroupgap = 0)
 
       fig = get_barplot_detailed(
         data_filt()$data_long, col = 'level_name', fills = get_fills('full'),
         by_treatment = input$by_treatment)
       ggplotly(fig, tooltip = 'text') |>
-        layout(annotations = c(anno, anno_base), margin = marg)
+        layout(annotations = c(anno, anno_base), margin = marj, legend = lej)
     }) |>
       bindCache(input$round_ids, input$by_treatment)
   })

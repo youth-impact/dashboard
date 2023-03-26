@@ -65,6 +65,10 @@ get_file_metadata = function(folder_url) {
 
 ########################################
 
+get_picker_options = function(...) {
+  pickerOptions(actionsBox = TRUE, selectedTextFormat = 'static', ...)
+}
+
 #' Get choices for UI input
 #'
 #' This function finds unique rows of a `data.table` to use as choices for UI
@@ -127,7 +131,15 @@ get_round_text = function(data_proc) {
 
 ########################################
 
-get_entity_labels = function(
+get_fills = function(type, palette = 'Blues') {
+  switch(
+    type, total = 'black', beginner = c('#fb9a99', '#e31a1c'),
+    ace = c('#a6cee3', '#1f78b4'), improved = '#33a02c',
+    full = rev(c(
+      '#EF5A5B', RColorBrewer::brewer.pal(n = 5L, name = palette)[-1L])))
+}
+
+get_tooltips = function(
     n, pct = NULL, pre = NULL, suf = NULL, entity = 'students') {
   n_label = scales::label_comma()(n)
   ans = glue('{n_label} {entity}')
@@ -151,7 +163,7 @@ get_barplot_data = function(data, x_col, col, by_treatment, percent) {
   quant_col = if (percent) 'pct_students' else 'n_students'
   set(data_now, j = 'quant', value = data_now[[quant_col]])
 
-  data_now[, label := get_entity_labels(n_students, pct_students)]
+  data_now[, label := get_tooltips(n_students, pct_students)]
 }
 
 #' Get summary barplot for outcomes data
@@ -192,11 +204,6 @@ get_barplot_summary = function(
     theme(axis.title.x = element_blank(), legend.position = 'none')
 
   if (by_treatment) p = p + facet_wrap(vars(treatment_name))
-  # if (percent) {
-  #   nudge_y = max(data_now$quant) * 0.04
-  #   p = p +
-  #     geom_text(aes(label = pct_label), size = text_size, nudge_y = nudge_y)
-  # }
   p
 }
 
@@ -226,7 +233,9 @@ get_barplot_detailed = function(
   y_scale = if (percent) label_percent_func else waiver()
 
   p = ggplot(data_now, aes(x = .data[[x_col]], y = quant)) +
-    geom_col(aes(fill = .data[[col]], text = label), width = bar_width) +
+    geom_col(
+      aes(fill = forcats::fct_rev(.data[[col]]), text = label),
+      width = bar_width) +
     labs(y = y_lab, fill = NULL, title = title) +
     scale_y_continuous(labels = y_scale) +
     scale_fill_manual(values = fills) +
@@ -237,10 +246,11 @@ get_barplot_detailed = function(
 
 get_trend_plot = function(
     data, x_col, y_col, text_col, fill = NULL, shape = NULL, y_lims = NULL,
-    percent = TRUE, ...) {
+    percent = TRUE, sign = 1, ...) {
 
   p = ggplot(
-    data, aes(x = .data[[x_col]], y = .data[[y_col]], text = .data[[text_col]]))
+    data, aes(
+      x = .data[[x_col]], y = sign * .data[[y_col]], text = .data[[text_col]]))
 
   p = if (length(fill) == 1L) {
     p + geom_point(fill = fill, shape = shape, ...)
@@ -268,6 +278,48 @@ get_trend_plot = function(
 
 ########################################
 
+get_metrics = function(data_long, data_wide, by_cols, time_col = 'timepoint') {
+  # assuming timepoints are Baseline and Endline and they're properly ordered
+
+  # metrics per timepoint
+  metric_cols = c('level_beginner', 'level_ace')
+  a1 = data_long[
+    , c(.(n_total = .N), lapply(.SD, \(x) sum(x, na.rm = TRUE))),
+    keyby = c(by_cols, time_col), .SDcols = metric_cols]
+
+  n_cols = gsub('^level', 'n', metric_cols)
+  pct_cols = gsub('^level', 'pct', metric_cols)
+  setnames(a1, metric_cols, n_cols)
+
+  for (i in seq_len(length(n_cols))) {
+    set(a1, j = pct_cols[i], value = 100 * a1[[n_cols[i]]] / a1$n_total)
+  }
+
+  a2 = a1[, c(
+    n_total = n_total[1L], lapply(.SD, diff)),
+    keyby = by_cols, .SDcols = c(n_cols, pct_cols)]
+  setnames(a2, c(n_cols, pct_cols), paste0(c(n_cols, pct_cols), '_diff'))
+
+  # metrics between timepoints
+  days_per_week = 5 # assumes duration is a column in data_wide
+
+  a3 = data_wide[, .(
+    mean_improvement = mean(student_level_diff, na.rm = TRUE),
+    sd_improvement = sd(student_level_diff, na.rm = TRUE),
+    mean_improvement_per_week =
+      mean(student_level_diff / duration, na.rm = TRUE) * days_per_week,
+    sd_improvement_per_week =
+      sd(student_level_diff / duration, na.rm = TRUE) * days_per_week,
+    n_improved = sum(student_level_diff > 0, na.rm = TRUE),
+    pct_improved = 100 * sum(student_level_diff > 0, na.rm = TRUE) / .N),
+    keyby = c(by_cols, time_col)]
+
+  a2 = merge(a2, a3, by = by_cols)
+  list(long = a1, wide = a2)
+}
+
+########################################
+
 # https://stackoverflow.com/questions/61122868/long-facet-wrap-labels-in-ggplotly-plotly-overlap-facets-strip-background
 # facet_strip_bigger = function(p, size = 50) {
 #   n_facets = c(1:length(p[['x']][['layout']][['shapes']]))
@@ -279,22 +331,3 @@ get_trend_plot = function(
 #   }
 #   p
 # }
-
-get_picker_options = function(...) {
-  pickerOptions(actionsBox = TRUE, selectedTextFormat = 'static', ...)
-}
-
-get_count_comma = function(data, col = 'student_id') {
-  n = scales::label_comma()(uniqueN(data[[col]]))
-}
-
-get_fills = function(type, palette = 'Blues') {
-  switch(
-    type,
-    total = 'black',
-    beginner = c('#fb9a99', '#e31a1c'),
-    ace = c('#a6cee3', '#1f78b4'),
-    improved = '#33a02c',
-    full = rev(c(
-      '#EF5A5B', RColorBrewer::brewer.pal(n = 5L, name = palette)[-1L])))
-}
