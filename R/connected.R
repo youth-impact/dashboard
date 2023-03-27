@@ -64,10 +64,10 @@ connected_server = function(id, data_raw) {
           inputId = ns('by_treatment'),
           label = 'Split results by treatment',
           value = TRUE),
-        checkboxInput(
-          inputId = ns('show_narrative'),
-          label = 'Show narrative',
-          value = TRUE)
+        # checkboxInput(
+        #   inputId = ns('show_narrative'),
+        #   label = 'Show narrative',
+        #   value = TRUE)
       )
     })
 
@@ -80,7 +80,8 @@ connected_server = function(id, data_raw) {
     # narrative text for the selected round
     output$round_text_kpis = output$round_text_detailed = renderUI({
       req(data_filt)
-      if (isTRUE(input$show_narrative)) get_round_text(data_filt())
+      get_round_text(data_filt())
+      # if (isTRUE(input$show_narrative)) get_round_text(data_filt())
     })
 
     # plot for KPIs
