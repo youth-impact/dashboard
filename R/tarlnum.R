@@ -63,7 +63,11 @@ tarlnum_ui = function(id) {
           title = 'Detailed Outcomes',
           br(),
           plotlyOutput(
-            ns('plot_detailed'), height = glue('{ht + 25}px'), width = '60%')
+            ns('plot_detailed_prepost'), height = glue('{ht + 25}px'),
+            width = '60%'),
+          plotlyOutput(
+            ns('plot_detailed_alluvial'), height = glue('{ht * 1.5}px'),
+            width = '60%')
         ),
         tabPanel(
           title = 'Outcomes by School',
@@ -314,7 +318,7 @@ tarlnum_server = function(id, data_raw) {
       bindCache(
         input$delivery_types, input$durations, input$regions, input$year_terms)
 
-    output$plot_detailed = renderPlotly({
+    output$plot_detailed_prepost = renderPlotly({
       req(data_filt)
       fig = get_barplot_detailed(
         data_filt()$long, col = 'student_level_fct', fills = get_fills('full'))
@@ -322,6 +326,32 @@ tarlnum_server = function(id, data_raw) {
       lej = list(tracegroupgap = 0)
       ggplotly(fig, tooltip = 'text') |>
         layout(annotations = c(anno, anno_base), legend = lej)
+    }) |>
+      bindCache(
+        input$delivery_types, input$durations, input$regions, input$year_terms)
+
+    output$plot_detailed_alluvial = renderPlotly({
+      req(data_filt)
+      flows = dcast(
+        data_filt()$long, student_id ~ timepoint,
+        value.var = 'student_level_fct')
+      flows = flows[, .N, keyby = .(Baseline, Endline)]
+      n_levels = uniqueN(flows$Baseline)
+
+      plot_ly(
+        type = 'sankey', orientation = 'h',
+        node = list(
+          label = rev(rep(levels(flows$Baseline), 2L)),
+          color = rep(get_fills('full'), 2L),
+          pad = 15, thickness = 20, line = list(color = 'black', width = 0.5)),
+        link = list(
+          source = rev(as.integer(flows$Baseline) - 1L),
+          target = rev(as.integer(flows$Endline) + n_levels - 1L),
+          value =  flows$N),
+        valueformat = ',',
+        valuesuffix = ' students') |>
+        layout(title = list(
+          text = 'Progress from Baseline to Endline', x = 0.15))
     }) |>
       bindCache(
         input$delivery_types, input$durations, input$regions, input$year_terms)
@@ -338,7 +368,9 @@ tarlnum_server = function(id, data_raw) {
       data_by_school[, pct_ace_diff := pct_ace_Endline - pct_ace_Baseline]
       data_by_school[, n_total_Endline := NULL]
       for (col in c('pct_ace_Baseline', 'pct_ace_Endline', 'pct_ace_diff')) {
-        set(data_by_school, j = col, value = round(data_by_school[[col]], 1))
+        set(data_by_school, j = col,
+            # value = format(data_by_school[[col]], digits = 2, nsmall = 1))
+            value = round(data_by_school[[col]], 1))
       }
       setorder(data_by_school, -pct_ace_diff)
 
