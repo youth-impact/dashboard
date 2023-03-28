@@ -10,7 +10,6 @@ connected_ui = function(id) {
     sidebarPanel(
       h5('Display options'),
       uiOutput(ns('ui_input')),
-      # uiOutput(ns('ui_counts')),
       width = 3
     ),
     mainPanel(
@@ -18,20 +17,12 @@ connected_ui = function(id) {
         tabPanel(
           title = 'Key Outcomes',
           uiOutput(ns('round_text_kpis')),
-          h4('Overall'),
-          plotOutput(ns('plot_kpis_overall'), height = glue('{ht * 2}px'))#,
-          # h4('Trends'),
-          # plotlyOutput(
-          #   ns('plot_kpis_trends_ace'), width = '70%', height = '350px'),
-          # plotlyOutput(
-          #   ns('plot_kpis_trends_beg'), width = '70%', height = '350px'),
-          # plotlyOutput(
-          #   ns('plot_kpis_trends_imp'), width = '56%', height = '350px')
+          plotlyOutput(
+            ns('plot_kpis_overall'), height = glue('{ht * 3}px'), width = '60%')
         ),
         tabPanel(
           title = 'Detailed Outcomes',
           uiOutput(ns('round_text_detailed')),
-          br(),
           plotlyOutput(ns('plot_detailed'), height = glue('{ht + 50}px'))
         )
       ),
@@ -85,7 +76,7 @@ connected_server = function(id, data_raw) {
     })
 
     # plot for KPIs
-    output$plot_kpis_overall = renderPlot({
+    output$plot_kpis_overall = renderPlotly({
       req(data_filt)
 
       data_wide = copy(data_filt()$data_wide)
@@ -94,30 +85,51 @@ connected_server = function(id, data_raw) {
       data_long = copy(data_filt()$data_long)
       data_long[, treatment_name := str_wrap(treatment_name, 20)]
 
-      fig_ace = get_barplot_summary(
+      yaxis = list(title = 'Share of students (%)', titlefont = list(size = 20))
+
+      fig = get_barplot_summary(
         data_long, col = 'level_ace', fills = get_fills('ace'),
-        title = 'Numeracy: division level', by_treatment = input$by_treatment)
-
-      fig_beginner = get_barplot_summary(
-        data_long, col = 'level_beginner', fills = get_fills('beginner'),
-        title = 'Innumeracy: beginner level',
-        by_treatment = input$by_treatment) +
-        theme(axis.title.y = element_blank())
-
-      fig_improved = get_barplot_summary(
-        data_wide, col = 'level_improved', fills = get_fills('improved'),
-        title = 'Improved at least one level', y_lims = c(0, 100),
         by_treatment = input$by_treatment)
+      fig_ace = ggplotly(fig, tooltip = 'text') |>
+        layout(yaxis = yaxis)
 
-      # use cowplot::plot_grid() to arrange plots
-      fig_ace_beginner = plot_grid(
-        fig_ace, fig_beginner, nrow = 1L, align = 'h', axis = 'tb',
-        rel_widths = c(1, 0.95))
+      fig = get_barplot_summary(
+        data_long, col = 'level_beginner', fills = get_fills('beginner'),
+        by_treatment = input$by_treatment)
+      fig_beginner = ggplotly(fig, tooltip = 'text') |>
+        layout(yaxis = yaxis)
 
-      fig_improved_null = plot_grid(
-        fig_improved, grid::nullGrob(), nrow = 1L, rel_widths = c(1, 1))
+      fig = get_barplot_summary(
+        data_wide, col = 'level_improved', fills = get_fills('improved'),
+        y_lims = c(0, 100), by_treatment = input$by_treatment, bar_width = 0.5)
+      fig_improved = ggplotly(fig, tooltip = 'text') |>
+        layout(yaxis = yaxis)
 
-      plot_grid(fig_ace_beginner, fig_improved_null, ncol = 1L)
+      if (input$by_treatment) {
+        fig_ace = facet_strip_bigger(fig_ace)
+        fig_beginner = facet_strip_bigger(fig_beginner)
+        fig_improved = facet_strip_bigger(fig_improved)
+        y = c(1.055, 0.68, 0.3)
+        heights = c(0.31, 0.38, 0.31)
+        marj_subplot = 0.065
+        marj_layout = list(t = 65)
+      } else {
+        y = c(1, 0.655, 0.275)
+        heights = c(0.31, 0.38, 0.31)
+        marj_subplot = 0.035
+        marj_layout = list(t = 20)
+      }
+
+      annos = list(
+        list(x = 0, y = y[1L], text = 'Numeracy: division level'),
+        list(x = 0, y = y[2L], text = 'Innumeracy: beginner level'),
+        list(x = 0, y = y[3L], text = 'Improved at least one level'))
+      annos = lapply(annos, \(z) c(z, anno_base))
+
+      subplot(
+        fig_ace, fig_beginner, fig_improved, nrows = 3L,
+        heights = heights, margin = marj_subplot, titleY = TRUE) |>
+        layout(annotations = annos, margin = marj_layout)
     }) |>
       bindCache(input$round_ids, input$by_treatment)
 
@@ -133,6 +145,7 @@ connected_server = function(id, data_raw) {
       fig = get_barplot_detailed(
         data_filt()$data_long, col = 'level_name', fills = get_fills('full'),
         by_treatment = input$by_treatment)
+
       ggplotly(fig, tooltip = 'text') |>
         layout(annotations = c(anno, anno_base), margin = marj, legend = lej)
     }) |>

@@ -126,7 +126,7 @@ get_data_connected = function(data_raw, keep_missing = c()) {
   data_long[, level_ace := level_id == 4]
 
   # add other columns for plotting
-  data_wide[, timepoint := 'Baseline\nto Endline']
+  data_wide[, timepoint := 'Baseline to Endline']
   data_wide[, student_level_diff :=
               student_level_endline - student_level_baseline]
   data_wide[, level_improved := student_level_diff > 0]

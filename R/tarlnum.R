@@ -190,13 +190,13 @@ tarlnum_server = function(id, data_raw) {
         data_filt()$long, col = 'level_beginner',
         fills = get_fills('beginner')) +
         theme(axis.title.y = element_blank())
-      fig_beg = ggplotly(fig, tooltip = 'text')
+      fig_beginner = ggplotly(fig, tooltip = 'text')
 
       fig = get_barplot_summary(
         data_filt()$wide, col = 'level_improved', fills = get_fills('improved'),
         y_lims = c(0, 100)) +
         theme(axis.title.y = element_blank())
-      fig_imp = ggplotly(fig, tooltip = 'text')
+      fig_improved = ggplotly(fig, tooltip = 'text')
 
       annos = list(
         list(x = 0, y = 1, text = 'Numeracy: division level'),
@@ -205,8 +205,8 @@ tarlnum_server = function(id, data_raw) {
       annos = lapply(annos, \(z) c(z, anno_base))
 
       subplot(
-        fig_ace, fig_beg, fig_imp, widths = c(0.37, 0.37, 0.26), margin = 0.04,
-        titleY = TRUE) |>
+        fig_ace, fig_beginner, fig_improved, widths = c(0.37, 0.37, 0.26),
+        margin = 0.04, titleY = TRUE) |>
         layout(annotations = annos, margin = list(t = 55))
     }) |>
       bindCache(

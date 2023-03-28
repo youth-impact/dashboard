@@ -3,7 +3,7 @@
 ui = navbarPage(
   theme = bslib::bs_theme(bootswatch = 'cosmo'),
   title = 'Youth Impact',
-  selected = 'TaRL Numeracy', # temporary
+  selected = 'ConnectEd', # temporary
 
   tabPanel(
     title = 'Reach',

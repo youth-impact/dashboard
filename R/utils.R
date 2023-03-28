@@ -104,7 +104,7 @@ get_round_text = function(data_proc) {
   data_now = data_proc$data_wide[, .N, keyby = treatment_id]
 
   overview_text = p(
-    strong('Purpose: '), data_proc$rounds$purpose, br(),
+    h5('Overview'), strong('Purpose: '), data_proc$rounds$purpose, br(),
     strong('Conclusion: '), data_proc$rounds$conclusion)
 
   treatments_now = merge(
@@ -123,10 +123,9 @@ get_round_text = function(data_proc) {
   })
 
   round_text = tagList(
-    br(), overview_text, h5('Treatments'),
-    unlist(treatment_text, recursive = FALSE),
+    overview_text, h5('Treatments'), unlist(treatment_text, recursive = FALSE),
     em(glue('{n_students} students in total ',
-            '(ascertained at baseline and endline).')), br())
+            '(ascertained at baseline and endline).')), h5('Results'))
 }
 
 ########################################
@@ -321,13 +320,13 @@ get_metrics = function(data_long, data_wide, by_cols, time_col = 'timepoint') {
 ########################################
 
 # https://stackoverflow.com/questions/61122868/long-facet-wrap-labels-in-ggplotly-plotly-overlap-facets-strip-background
-# facet_strip_bigger = function(p, size = 50) {
-#   n_facets = c(1:length(p[['x']][['layout']][['shapes']]))
-#   for (i in n_facets){
-#     if (n_facets[i] %% 2 == 0) {
-#       p[['x']][['layout']][['shapes']][[i]][['y0']] = size
-#       p[['x']][['layout']][['shapes']][[i]][['y1']] = 0
-#     }
-#   }
-#   p
-# }
+facet_strip_bigger = function(p, size = 45) {
+  n_facets = c(1:length(p[['x']][['layout']][['shapes']]))
+  for (i in n_facets){
+    if (n_facets[i] %% 2 == 0) {
+      p[['x']][['layout']][['shapes']][[i]][['y0']] = size
+      p[['x']][['layout']][['shapes']][[i]][['y1']] = 0
+    }
+  }
+  p
+}
