@@ -104,7 +104,8 @@ get_round_text = function(data_proc) {
   data_now = data_proc$data_wide[, .N, keyby = treatment_id]
 
   overview_text = p(
-    h5('Overview'), strong('Purpose: '), data_proc$rounds$purpose, br(),
+    h5(glue('Round {data_proc$rounds$round_name} Overview')),
+    strong('Purpose: '), data_proc$rounds$purpose, br(),
     strong('Conclusion: '), data_proc$rounds$conclusion)
 
   treatments_now = merge(
@@ -153,10 +154,14 @@ get_tooltips = function(
 
 get_barplot_data = function(data, x_col, col, by_treatment, percent) {
   by1 = c(x_col, col)
-  if (by_treatment) by1 = c('treatment_id', 'treatment_name', by1)
+  if (by_treatment) by1 = c('treatment_id', 'treatment_wrap', by1)
   by2 = by1[-length(by1)]
 
   data_now = data[, .N, keyby = by1]
+  treatment_levels = unique(data_now$treatment_wrap) # trust keyby treatment_id
+  if (by_treatment) {
+    data_now[, treatment_wrap := factor(treatment_wrap, treatment_levels)]
+  }
   data_now[, n_students := N, by = by2]
   data_now[, pct_students := 100 * N / sum(n_students), by = by2]
   quant_col = if (percent) 'pct_students' else 'n_students'
@@ -176,7 +181,7 @@ get_barplot_data = function(data, x_col, col, by_treatment, percent) {
 #' @param fills character vector indicating fill colors for bars.
 #' @param title string indicating title of plot.
 #' @param x_col string indicating column in `data` to use for x-axis.
-#' @param by_treatment logical indicating whether to facet by `treatment_name`.
+#' @param by_treatment logical indicating whether to facet by treatment.
 #' @param percent logical indicating whether to plot percentages or counts.
 #' @param bar_width numeric used by [ggplot2::geom_col()] for width of bars.
 #' @param text_size numeric used by [ggplot2::geom_text()] for text above bars.
@@ -202,7 +207,7 @@ get_barplot_summary = function(
     scale_fill_manual(values = fills) +
     theme(axis.title.x = element_blank(), legend.position = 'none')
 
-  if (by_treatment) p = p + facet_wrap(vars(treatment_name))
+  if (by_treatment) p = p + facet_wrap(vars(treatment_wrap))
   p
 }
 
@@ -215,7 +220,7 @@ get_barplot_summary = function(
 #' @param col string indicating column in `data` to use for calculating counts
 #'   or percentages.
 #' @param x_col string indicating column in `data` to use for x-axis.
-#' @param by_treatment logical indicating whether to facet by `treatment_name`.
+#' @param by_treatment logical indicating whether to facet by treatment.
 #' @param percent logical indicating whether to plot percentages or counts.
 #' @param bar_width numeric used by [ggplot2::geom_col()] for width of bars.
 #'
@@ -239,7 +244,19 @@ get_barplot_detailed = function(
     scale_y_continuous(labels = y_scale) +
     scale_fill_manual(values = fills) +
     theme(axis.title.x = element_blank())
-  if (by_treatment) p = p + facet_wrap(vars(treatment_name))
+  if (by_treatment) p = p + facet_wrap(vars(treatment_wrap))
+  p
+}
+
+# https://stackoverflow.com/questions/61122868/
+facet_strip_bigger = function(p, size = 45) {
+  n_facets = c(1:length(p[['x']][['layout']][['shapes']]))
+  for (i in n_facets) {
+    if (n_facets[i] %% 2 == 0) {
+      p[['x']][['layout']][['shapes']][[i]][['y0']] = size
+      p[['x']][['layout']][['shapes']][[i]][['y1']] = 0
+    }
+  }
   p
 }
 
@@ -273,6 +290,47 @@ get_trend_plot = function(
       breaks = scales::breaks_extended(), minor_breaks = NULL) +
     scale_y_continuous(labels = y_labs, limits = y_lims)
   p
+}
+
+get_plot_kpis = function(data_long, data_wide) {
+  yaxis = list(title = 'Share of students (%)', titlefont = list(size = 20))
+
+  fig = get_barplot_summary(
+    data_long, col = 'level_ace', fills = get_fills('ace'), by_treatment = TRUE)
+  fig_ace = ggplotly(fig, tooltip = 'text') |>
+    layout(yaxis = yaxis)
+
+  fig = get_barplot_summary(
+    data_long, col = 'level_beginner', fills = get_fills('beginner'),
+    by_treatment = TRUE)
+  fig_beginner = ggplotly(fig, tooltip = 'text') |>
+    layout(yaxis = yaxis)
+
+  fig = get_barplot_summary(
+    data_wide, col = 'level_improved', fills = get_fills('improved'),
+    y_lims = c(0, 100), bar_width = 0.5, by_treatment = TRUE)
+  fig_improved = ggplotly(fig, tooltip = 'text') |>
+    layout(yaxis = yaxis)
+
+  fig_ace = facet_strip_bigger(fig_ace)
+  fig_beginner = facet_strip_bigger(fig_beginner)
+  fig_improved = facet_strip_bigger(fig_improved)
+
+  y = c(1.055, 0.68, 0.3)
+  heights = c(0.31, 0.38, 0.31)
+  marj_subplot = 0.065
+  marj_layout = list(t = 65)
+
+  annos = list(
+    list(x = 0, y = y[1L], text = 'Numeracy: division level'),
+    list(x = 0, y = y[2L], text = 'Innumeracy: beginner level'),
+    list(x = 0, y = y[3L], text = 'Improved at least one level'))
+  annos = lapply(annos, \(z) c(z, anno_base))
+
+  subplot(
+    fig_ace, fig_beginner, fig_improved, nrows = 3L,
+    heights = heights, margin = marj_subplot, titleY = TRUE) |>
+    layout(annotations = annos, margin = marj_layout)
 }
 
 ########################################
@@ -318,15 +376,3 @@ get_metrics = function(data_long, data_wide, by_cols, time_col = 'timepoint') {
 }
 
 ########################################
-
-# https://stackoverflow.com/questions/61122868/long-facet-wrap-labels-in-ggplotly-plotly-overlap-facets-strip-background
-facet_strip_bigger = function(p, size = 45) {
-  n_facets = c(1:length(p[['x']][['layout']][['shapes']]))
-  for (i in n_facets){
-    if (n_facets[i] %% 2 == 0) {
-      p[['x']][['layout']][['shapes']][[i]][['y0']] = size
-      p[['x']][['layout']][['shapes']][[i]][['y1']] = 0
-    }
-  }
-  p
-}

@@ -2,9 +2,7 @@
 
 connected_ui = function(id) {
   ns = NS(id)
-
   ht = 300
-  height = glue('{ht}px')
 
   sidebarLayout(
     sidebarPanel(
@@ -18,12 +16,13 @@ connected_ui = function(id) {
           title = 'Key Outcomes',
           uiOutput(ns('round_text_kpis')),
           plotlyOutput(
-            ns('plot_kpis_overall'), height = glue('{ht * 3}px'), width = '60%')
+            ns('plot_kpis'), height = glue('{ht*3}px'), width = '80%'),
         ),
         tabPanel(
           title = 'Detailed Outcomes',
           uiOutput(ns('round_text_detailed')),
-          plotlyOutput(ns('plot_detailed'), height = glue('{ht + 50}px'))
+          plotlyOutput(
+            ns('plot_detailed'), height = glue('{ht + 50}px'), width = '80%')
         )
       ),
       width = 9
@@ -53,13 +52,28 @@ connected_server = function(id, data_raw) {
         ),
         checkboxInput(
           inputId = ns('by_treatment'),
-          label = 'Split results by treatment',
+          label = 'Split selected round\'s results by treatment',
           value = TRUE),
+        # checkboxInput(
+        #   inputId = ns('show_pooled'),
+        #   label = 'Show pooled results from all rounds',
+        #   value = TRUE)
         # checkboxInput(
         #   inputId = ns('show_narrative'),
         #   label = 'Show narrative',
         #   value = TRUE)
       )
+    })
+
+    data_pool = reactive({
+      req(data_proc)
+      data_pool = get_data_filtered(data_proc())
+      treatment_now = 'All Rounds,\nAll Treatments'
+      data_pool$data_long[, treatment_wrap := treatment_now]
+      data_pool$data_wide[, treatment_wrap := treatment_now]
+      data_pool$data_long[, treatment_id := 'zzz']
+      data_pool$data_wide[, treatment_id := 'zzz']
+      data_pool
     })
 
     data_filt = reactive({
@@ -75,79 +89,56 @@ connected_server = function(id, data_raw) {
       # if (isTRUE(input$show_narrative)) get_round_text(data_filt())
     })
 
-    # plot for KPIs
-    output$plot_kpis_overall = renderPlotly({
+    output$plot_kpis = renderPlotly({
       req(data_filt)
 
-      data_wide = copy(data_filt()$data_wide)
-      data_wide[, treatment_name := str_wrap(treatment_name, 20)]
-
       data_long = copy(data_filt()$data_long)
-      data_long[, treatment_name := str_wrap(treatment_name, 20)]
+      data_wide = copy(data_filt()$data_wide)
 
-      yaxis = list(title = 'Share of students (%)', titlefont = list(size = 20))
-
-      fig = get_barplot_summary(
-        data_long, col = 'level_ace', fills = get_fills('ace'),
-        by_treatment = input$by_treatment)
-      fig_ace = ggplotly(fig, tooltip = 'text') |>
-        layout(yaxis = yaxis)
-
-      fig = get_barplot_summary(
-        data_long, col = 'level_beginner', fills = get_fills('beginner'),
-        by_treatment = input$by_treatment)
-      fig_beginner = ggplotly(fig, tooltip = 'text') |>
-        layout(yaxis = yaxis)
-
-      fig = get_barplot_summary(
-        data_wide, col = 'level_improved', fills = get_fills('improved'),
-        y_lims = c(0, 100), by_treatment = input$by_treatment, bar_width = 0.5)
-      fig_improved = ggplotly(fig, tooltip = 'text') |>
-        layout(yaxis = yaxis)
-
-      if (input$by_treatment) {
-        fig_ace = facet_strip_bigger(fig_ace)
-        fig_beginner = facet_strip_bigger(fig_beginner)
-        fig_improved = facet_strip_bigger(fig_improved)
-        y = c(1.055, 0.68, 0.3)
-        heights = c(0.31, 0.38, 0.31)
-        marj_subplot = 0.065
-        marj_layout = list(t = 65)
-      } else {
-        y = c(1, 0.655, 0.275)
-        heights = c(0.31, 0.38, 0.31)
-        marj_subplot = 0.035
-        marj_layout = list(t = 20)
+      if (isFALSE(input$by_treatment)) {
+        data_long[, treatment_id := '0']
+        data_wide[, treatment_id := '0']
+        round_name = data_long$round_name[1L]
+        treatment_now = glue('Round {round_name},\nEither Treatment')
+        data_long[, treatment_wrap := treatment_now]
+        data_wide[, treatment_wrap := treatment_now]
       }
 
-      annos = list(
-        list(x = 0, y = y[1L], text = 'Numeracy: division level'),
-        list(x = 0, y = y[2L], text = 'Innumeracy: beginner level'),
-        list(x = 0, y = y[3L], text = 'Improved at least one level'))
-      annos = lapply(annos, \(z) c(z, anno_base))
-
-      subplot(
-        fig_ace, fig_beginner, fig_improved, nrows = 3L,
-        heights = heights, margin = marj_subplot, titleY = TRUE) |>
-        layout(annotations = annos, margin = marj_layout)
+      data_long = rbind(data_long, data_pool()$data_long)
+      data_wide = rbind(data_wide, data_pool()$data_wide)
+      get_plot_kpis(data_long, data_wide)
     }) |>
       bindCache(input$round_ids, input$by_treatment)
 
     # plot for A/B detailed results
     output$plot_detailed = renderPlotly({
-      req(data_filt, !is.null(input$by_treatment))
+      req(data_filt)
 
-      y = if (input$by_treatment) 1.12 else 1
-      anno = list(x = 0, y = y, text = 'All levels')
-      marj = if (input$by_treatment) list(t = 50) else NULL
-      lej = list(tracegroupgap = 0)
+      data_long = copy(data_filt()$data_long)
+      if (isFALSE(input$by_treatment)) {
+        data_long[, treatment_id := '0']
+        round_name = data_long$round_name[1L]
+        treatment_now = glue('Round {round_name},\nEither Treatment')
+        data_long[, treatment_wrap := treatment_now]
+      }
 
       fig = get_barplot_detailed(
-        data_filt()$data_long, col = 'level_name', fills = get_fills('full'),
-        by_treatment = input$by_treatment)
+        data_long, col = 'level_name', fills = get_fills('full'),
+        by_treatment = TRUE)
+      fig = ggplotly(fig, tooltip = 'text')
 
-      ggplotly(fig, tooltip = 'text') |>
-        layout(annotations = c(anno, anno_base), margin = marj, legend = lej)
+      # if (input$by_treatment) {
+        fig = facet_strip_bigger(fig)
+        y = 1.2
+        marj = list(t = 65)
+      # } else {
+      #   y = 1
+      #   marj = NULL
+      # }
+
+      anno = c(list(x = 0, y = y, text = 'All levels'), anno_base)
+      lej = list(tracegroupgap = 0)
+      layout(fig, annotations = anno, margin = marj, legend = lej)
     }) |>
       bindCache(input$round_ids, input$by_treatment)
   })

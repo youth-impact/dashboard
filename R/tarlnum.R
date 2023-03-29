@@ -404,9 +404,9 @@ tarlnum_server = function(id, data_raw) {
 
       long = get_data_filtered(data_proc(), filt_compare())$data_long
       set(long, j = 'treatment_id', value = long$delivery_type)
-      set(long, j = 'treatment_name', value = long$delivery_type)
+      set(long, j = 'treatment_wrap', value = long$delivery_type)
 
-      by_cols = c('treatment_id', 'treatment_name', 'duration')
+      by_cols = c('treatment_id', 'treatment_wrap', 'duration')
       wide = get_data_wide(long, by_cols)
       list(long = long, wide = wide)
     })
@@ -414,7 +414,7 @@ tarlnum_server = function(id, data_raw) {
     output$plot_compare = renderPlotly({
       req(data_compare)
 
-      by_cols = c('treatment_id', 'treatment_name')
+      by_cols = c('treatment_id', 'treatment_wrap')
       metrics = get_metrics(data_compare()$long, data_compare()$wide, by_cols)
 
       metrics$wide[, tt_improvement := glue(

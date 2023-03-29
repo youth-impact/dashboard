@@ -112,6 +112,7 @@ get_data_connected = function(data_raw, keep_missing = c()) {
   setnames(data_wide, 'round', 'round_name')
   data_wide[, treatment := NULL]
   arms[, c('round', 'treatment') := NULL]
+  data_wide[, treatment_wrap := str_wrap(treatment_name, 20)]
 
   # convert to long format for some plots
   meas_vars = c('student_level_baseline', 'student_level_endline')
@@ -184,7 +185,7 @@ get_data_tarlnum = function(data_raw, keep_missing = 'Midline') {
   list(data_long = data_long[])
 }
 
-get_data_filtered = function(x, filt) {
+get_data_filtered = function(x, filt = data.table()) {
   y = lapply(x, \(d) {
     if (any(colnames(filt) %in% colnames(d))) {
       by_cols = intersect(colnames(filt), colnames(d))
@@ -198,9 +199,14 @@ get_data_filtered = function(x, filt) {
 }
 
 get_data_wide = function(data_long, by_cols, time_col = 'timepoint') {
-  data_wide = data_long[, .(
-    student_level_diff = diff(student_level_int)),
-    keyby = c('student_id', by_cols)]
+  form = paste(paste(c('student_id', by_cols), collapse = '+'), '~', time_col)
+  data_wide = dcast(
+    data_long, form, value.var = c('student_level_int', 'student_level_fct'))
+  time_cols = paste(
+    'student_level_int', sort(unique(data_long[[time_col]])), sep = '_')
+  envir = list(x = time_cols[1L], y = time_cols[length(time_cols)])
+  data_wide[, student_level_diff := y - x, env = envir]
+  setkeyv(data_wide, by_cols)
   set(data_wide, j = 'level_improved', value = data_wide$student_level_diff > 0)
   set(data_wide, j = time_col, value = 'Baseline to Endline')[]
 }
