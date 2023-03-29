@@ -91,7 +91,6 @@ connected_server = function(id, data_raw) {
 
     output$plot_kpis = renderPlotly({
       req(data_filt)
-
       data_long = copy(data_filt()$data_long)
       data_wide = copy(data_filt()$data_wide)
 

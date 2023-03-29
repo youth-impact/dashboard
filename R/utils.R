@@ -374,5 +374,3 @@ get_metrics = function(data_long, data_wide, by_cols, time_col = 'timepoint') {
   a2 = merge(a2, a3, by = by_cols)
   list(long = a1, wide = a2)
 }
-
-########################################
