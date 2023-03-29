@@ -38,7 +38,7 @@ anno_base = list(
 params = yaml::read_yaml('params.yaml')
 
 # authorize googledrive to access files
-if (Sys.getenv('GOOGLE_TOKEN') == '') { # locally
+if (Sys.getenv('GOOGLE_TOKEN') == '') {
   drive_auth(email = params$email)
 } else { # GitHub Actions
   drive_auth(path = Sys.getenv('GOOGLE_TOKEN'))

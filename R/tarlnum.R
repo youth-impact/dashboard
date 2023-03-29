@@ -367,11 +367,6 @@ tarlnum_server = function(id, data_raw) {
 
       data_by_school[, pct_ace_diff := pct_ace_Endline - pct_ace_Baseline]
       data_by_school[, n_total_Endline := NULL]
-      for (col in c('pct_ace_Baseline', 'pct_ace_Endline', 'pct_ace_diff')) {
-        set(data_by_school, j = col,
-            # value = format(data_by_school[[col]], digits = 2, nsmall = 1))
-            value = round(data_by_school[[col]], 1))
-      }
       setorder(data_by_school, -pct_ace_diff)
 
       cols_old = c(
@@ -391,6 +386,11 @@ tarlnum_server = function(id, data_raw) {
           background = styleColorBar(c(0, 100), get_fills('ace')[1L]),
           backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat',
           backgroundPosition = 'center') |>
+        formatRound(
+          columns = c(
+            'Baseline numeracy (%)', 'Endline numeracy (%)',
+            'Change in numeracy (%)'),
+          digits = 1L) |>
         formatStyle(colnames(data_by_school), lineHeight = '80%')
     })
 
