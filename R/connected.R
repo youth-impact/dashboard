@@ -22,7 +22,7 @@ connected_ui = function(id) {
           title = 'Detailed Outcomes',
           uiOutput(ns('round_text_detailed')),
           plotlyOutput(
-            ns('plot_detailed'), height = glue('{ht + 50}px'), width = '80%')
+            ns('plot_detailed'), height = glue('{ht + 50}px'), width = '95%')
         )
       ),
       width = 9
@@ -121,6 +121,8 @@ connected_server = function(id, data_raw) {
         treatment_now = glue('Round {round_name},\nEither Treatment')
         data_long[, treatment_wrap := treatment_now]
       }
+
+      data_long = rbind(data_long, data_pool()$data_long)
 
       fig = get_barplot_detailed(
         data_long, col = 'level_name', fills = get_fills('full'),
