@@ -75,9 +75,9 @@ tarlnum_ui = function(id) {
           div(dataTableOutput(ns('table_by_school')), style = 'font-size:80%'),
         ),
         tabPanel(
-          title = 'Outcomes by Direct and Govt. Delivery',
+          title = 'Outcomes by Delivery Model',
           br(),
-          p(em('Based on filtering options other than delivery type.')),
+          p(em('Based on filtering options other than delivery model.')),
           plotlyOutput(ns('plot_compare'), height = glue('{ht * 2}px'))
         )
       ),
@@ -100,7 +100,7 @@ tarlnum_server = function(id, data_raw) {
 
       delivery_types = sort(unique(data_proc()$data_long$delivery_type))
       delivery_types_options = get_picker_options(
-        noneSelectedText = 'Delivery types')
+        noneSelectedText = 'Delivery models')
 
       durations = sort(unique(data_proc()$data_long$duration))
       durations_options = get_picker_options(
@@ -357,17 +357,17 @@ tarlnum_server = function(id, data_raw) {
         input$delivery_types, input$durations, input$regions, input$year_terms)
 
     output$table_by_school = renderDataTable({
-      data_by_school = data_filt()$long[, .(
+      metrics = data_filt()$long[, .(
         n_total = .N, pct_ace = 100 * sum(level_ace, na.rm = TRUE) / .N),
         keyby = .(delivery_type, region, school_name, school_id, timepoint)]
 
-      data_by_school = dcast(
-        data_by_school, formula('... ~ timepoint'),
+      metrics = dcast(
+        metrics, formula('... ~ timepoint'),
         value.var = c('n_total', 'pct_ace'))
 
-      data_by_school[, pct_ace_diff := pct_ace_Endline - pct_ace_Baseline]
-      data_by_school[, n_total_Endline := NULL]
-      setorder(data_by_school, -pct_ace_diff)
+      metrics[, pct_ace_diff := pct_ace_Endline - pct_ace_Baseline]
+      metrics[, n_total_Endline := NULL]
+      setorder(metrics, -pct_ace_diff)
 
       cols_old = c(
         'delivery_type', 'region', 'school_name', 'school_id',
@@ -376,22 +376,22 @@ tarlnum_server = function(id, data_raw) {
       cols_new = c(
         'Delivery type', 'Region', 'School name', 'School ID',
         'Number of students', 'Baseline numeracy (%)',
-        'Endline numeracy (%)', 'Change in numeracy (%)')
-      setnames(data_by_school, cols_old, cols_new)
+        'Endline numeracy (%)', 'Change in numeracy (%-points)')
+      setnames(metrics, cols_old, cols_new)
 
       opts = list(pageLength = 25L)
-      DT::datatable(data_by_school, rownames = FALSE, options = opts) |>
+      DT::datatable(metrics, rownames = FALSE, options = opts) |>
         formatStyle(
-          columns = 'Change in numeracy (%)',
+          columns = 'Change in numeracy (%-points)',
           background = styleColorBar(c(0, 100), get_fills('ace')[1L]),
           backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat',
           backgroundPosition = 'center') |>
         formatRound(
           columns = c(
             'Baseline numeracy (%)', 'Endline numeracy (%)',
-            'Change in numeracy (%)'),
+            'Change in numeracy (%-points)'),
           digits = 1L) |>
-        formatStyle(colnames(data_by_school), lineHeight = '80%')
+        formatStyle(colnames(metrics), lineHeight = '80%')
     })
 
     filt_compare = reactive({

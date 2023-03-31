@@ -40,7 +40,7 @@ params = yaml::read_yaml('params.yaml')
 # authorize googledrive to access files
 if (Sys.getenv('GOOGLE_TOKEN') == '') {
   drive_auth(email = params$email)
-} else { # GitHub Actions
+} else {
   drive_auth(path = Sys.getenv('GOOGLE_TOKEN'))
 }
 
@@ -287,7 +287,8 @@ get_trend_plot = function(
   p = p +
     labs(x = 'Year', y = y_lab, fill = NULL, shape = NULL) +
     scale_x_continuous(
-      breaks = scales::breaks_extended(), minor_breaks = NULL) +
+      # scales::extended_breaks()
+      breaks = sort(unique(round(data[[x_col]]))), minor_breaks = NULL) +
     scale_y_continuous(labels = y_labs, limits = y_lims)
   p
 }
@@ -356,6 +357,18 @@ get_metrics = function(data_long, data_wide, by_cols, time_col = 'timepoint') {
     n_total = n_total[1L], lapply(.SD, diff)),
     keyby = by_cols, .SDcols = c(n_cols, pct_cols)]
   setnames(a2, c(n_cols, pct_cols), paste0(c(n_cols, pct_cols), '_diff'))
+
+  # a2 = dcast(
+  #   a1, formula(paste(paste(by_cols, collapse = '+'), '~', time_col)),
+  #   value.var = c('n_total', n_cols, pct_cols))
+  #
+  # time_levels = levels(data_long[[time_col]])
+  # time_levels = c(time_levels[1L], tail(time_levels, 1L))
+  # for (col in c(n_cols, pct_cols)) {
+  #   cols_now = sapply(time_levels, \(x) paste(col, x, sep = '_'))
+  #   set(a2, j = paste0(col, '_diff'),
+  #       value = a2[[cols_now[2L]]] - a2[[cols_now[1L]]])
+  # }
 
   # metrics between timepoints
   days_per_week = 5 # assumes duration is a column in data_wide
