@@ -203,8 +203,9 @@ get_barplot_summary = function(
   p = ggplot(data_now, aes(x = .data[[x_col]], y = quant)) +
     geom_col(aes(fill = .data[[x_col]], text = label), width = bar_width) +
     labs(y = y_lab, title = title) +
+    scale_x_discrete(drop = FALSE) +
     scale_y_continuous(labels = y_scale, limits = y_lims) +
-    scale_fill_manual(values = fills) +
+    scale_fill_manual(drop = FALSE, values = fills) +
     theme(axis.title.x = element_blank(), legend.position = 'none')
 
   if (by_treatment) p = p + facet_wrap(vars(treatment_wrap))

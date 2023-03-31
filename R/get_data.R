@@ -168,10 +168,11 @@ get_data_tarlnum = function(data_raw, keep_missing = 'Midline') {
   data_long = data_long[!is.na(duration)]
 
   # remove data missing certain timepoints
-  timepoints_reqd = setdiff(levels(data_long$timepoint), keep_missing)
+  timepoints_req = setdiff(levels(data_long$timepoint), keep_missing)
   data_long = data_long[
-    , if (all(timepoints_reqd %in% timepoint[!is.na(student_level_int)])) .SD,
+    , if (all(timepoints_req %in% timepoint[!is.na(student_level_int)])) .SD,
     by = student_id]
+  data_long[, timepoint := factor(timepoint, timepoints_req)]
 
   # remove rows for midline
   data_long = data_long[timepoint != 'Midline']
@@ -185,13 +186,20 @@ get_data_tarlnum = function(data_raw, keep_missing = 'Midline') {
   list(data_long = data_long[])
 }
 
-get_data_filtered = function(x, filt = data.table()) {
+get_data_filtered = function(x, filt = data.table(), filt_by_student = NULL) {
   y = lapply(x, \(d) {
-    if (any(colnames(filt) %in% colnames(d))) {
+    d_new = if (any(colnames(filt) %in% colnames(d))) {
       by_cols = intersect(colnames(filt), colnames(d))
       merge(d, filt, by = by_cols, sort = FALSE, allow.cartesian = TRUE)
     } else {
       copy(d)
+    }
+    if (!is.null(filt_by_student) &&
+        all(colnames(filt_by_student) %in% colnames(d_new))) {
+      ok = d_new[filt_by_student, .(student_id), on = .NATURAL, nomatch = NULL]
+      d_new = d_new[unique(ok), on = .NATURAL, nomatch = NULL]
+    } else {
+      d_new
     }
   })
   names(y) = names(x)

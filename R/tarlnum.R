@@ -114,6 +114,10 @@ tarlnum_server = function(id, data_raw) {
       year_terms_options = get_picker_options(
         noneSelectedText = 'Years and terms')
 
+      baseline_levels = levels(data_proc()$data_long$student_level_fct)
+      baseline_levels_options = get_picker_options(
+        noneSelectedText = 'Levels at baseline')
+
       tagList(
         pickerInput(
           inputId = ns('delivery_types'),
@@ -142,6 +146,13 @@ tarlnum_server = function(id, data_raw) {
           selected = year_terms,
           multiple = TRUE,
           options = year_terms_options
+        ),
+        pickerInput(
+          inputId = ns('baseline_levels'),
+          choices = baseline_levels,
+          selected = baseline_levels,
+          multiple = TRUE,
+          options = baseline_levels_options
         )
       )
     })
@@ -157,8 +168,10 @@ tarlnum_server = function(id, data_raw) {
     })
 
     data_filt = reactive({
-      req(data_proc, filt)
-      long = get_data_filtered(data_proc(), filt())$data_long
+      req(data_proc, filt, input$baseline_levels)
+      filt_by_student = data.table(
+        timepoint = 'Baseline', student_level_fct = input$baseline_levels)
+      long = get_data_filtered(data_proc(), filt(), filt_by_student)$data_long
       wide = get_data_wide(long, c('duration', 'year_term_num', 'year_term'))
       list(long = long, wide = wide)
     })
@@ -200,8 +213,8 @@ tarlnum_server = function(id, data_raw) {
 
       annos = list(
         list(x = 0, y = 1, text = 'Numeracy: division level'),
-        list(x = 0.4, y = 1, text = 'Innumeracy: beginner level'),
-        list(x = 0.77, y = 1, text = 'Improved at least\none level'))
+        list(x = 0.405, y = 1, text = 'Innumeracy: beginner level'),
+        list(x = 0.775, y = 1, text = 'Improved at least\none level'))
       annos = lapply(annos, \(z) c(z, anno_base))
 
       subplot(
@@ -210,7 +223,8 @@ tarlnum_server = function(id, data_raw) {
         layout(annotations = annos, margin = list(t = 55))
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms)
+        input$delivery_types, input$durations, input$regions, input$year_terms,
+        input$baseline_levels)
 
     data_trend = reactive({
       req(data_filt)
@@ -251,7 +265,8 @@ tarlnum_server = function(id, data_raw) {
           annotations = c(anno, anno_base), margin = marj, legend = lej)
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms)
+        input$delivery_types, input$durations, input$regions, input$year_terms,
+        input$baseline_levels)
 
     output$plot_kpis_trends_beginner = renderPlotly({
       req(data_trend)
@@ -264,7 +279,8 @@ tarlnum_server = function(id, data_raw) {
         layout(annotations = c(anno, anno_base), margin = marj, legend = lej)
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms)
+        input$delivery_types, input$durations, input$regions, input$year_terms,
+        input$baseline_levels)
 
     output$plot_kpis_trends_ace_diff = renderPlotly({
       req(data_trend)
@@ -277,7 +293,8 @@ tarlnum_server = function(id, data_raw) {
         layout(annotations = c(anno, anno_base), margin = marj)
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms)
+        input$delivery_types, input$durations, input$regions, input$year_terms,
+        input$baseline_levels)
 
     output$plot_kpis_trends_beginner_diff = renderPlotly({
       req(data_trend)
@@ -290,7 +307,8 @@ tarlnum_server = function(id, data_raw) {
         layout(annotations = c(anno, anno_base), margin = marj)
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms)
+        input$delivery_types, input$durations, input$regions, input$year_terms,
+        input$baseline_levels)
 
     output$plot_kpis_trends_improved = renderPlotly({
       req(data_trend)
@@ -303,7 +321,8 @@ tarlnum_server = function(id, data_raw) {
         layout(annotations = c(anno, anno_base), margin = marj)
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms)
+        input$delivery_types, input$durations, input$regions, input$year_terms,
+        input$baseline_levels)
 
     output$plot_kpis_trends_total = renderPlotly({
       req(data_trend)
@@ -316,7 +335,8 @@ tarlnum_server = function(id, data_raw) {
         layout(annotations = c(anno, anno_base), margin = marj)
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms)
+        input$delivery_types, input$durations, input$regions, input$year_terms,
+        input$baseline_levels)
 
     output$plot_detailed_prepost = renderPlotly({
       req(data_filt)
@@ -328,25 +348,32 @@ tarlnum_server = function(id, data_raw) {
         layout(annotations = c(anno, anno_base), legend = lej)
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms)
+        input$delivery_types, input$durations, input$regions, input$year_terms,
+        input$baseline_levels)
 
     output$plot_detailed_alluvial = renderPlotly({
       req(data_filt)
       flows = dcast(
         data_filt()$long, student_id ~ timepoint,
         value.var = 'student_level_fct')
-      flows = flows[, .N, keyby = .(Baseline, Endline)]
-      n_levels = uniqueN(flows$Baseline)
+
+      levs = sort(unique(data_filt()$long$student_level_fct)) # keep as factor
+      flows = merge(
+        CJ(Baseline = levs, Endline = levs),
+        flows[, .N, keyby = .(Baseline, Endline)],
+        by = c('Baseline', 'Endline'), all.x = TRUE)
+      flows[is.na(N), N := 0L]
 
       plot_ly(
         type = 'sankey', orientation = 'h',
         node = list(
           label = rev(rep(levels(flows$Baseline), 2L)),
           color = rep(get_fills('full'), 2L),
-          pad = 15, thickness = 20, line = list(color = 'black', width = 0.5)),
+          pad = 15, thickness = 20, line = list(color = 'black', width = 0.5),
+          hoverinfo = 'none'),
         link = list(
           source = rev(as.integer(flows$Baseline) - 1L),
-          target = rev(as.integer(flows$Endline) + n_levels - 1L),
+          target = rev(as.integer(flows$Endline) + length(levs) - 1L),
           value =  flows$N),
         valueformat = ',',
         valuesuffix = ' students') |>
@@ -354,7 +381,8 @@ tarlnum_server = function(id, data_raw) {
           text = 'Progress from Baseline to Endline', x = 0.15))
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms)
+        input$delivery_types, input$durations, input$regions, input$year_terms,
+        input$baseline_levels)
 
     output$table_by_school = renderDataTable({
       metrics = data_filt()$long[, .(
@@ -400,9 +428,13 @@ tarlnum_server = function(id, data_raw) {
     })
 
     data_compare = reactive({
-      req(data_proc, filt_compare)
+      req(data_proc, filt_compare, input$baseline_levels)
 
-      long = get_data_filtered(data_proc(), filt_compare())$data_long
+      filt_by_student = data.table(
+        timepoint = 'Baseline', student_level_fct = input$baseline_levels)
+
+      long = get_data_filtered(
+        data_proc(), filt_compare(), filt_by_student)$data_long
       set(long, j = 'treatment_id', value = long$delivery_type)
       set(long, j = 'treatment_wrap', value = long$delivery_type)
 
@@ -414,6 +446,7 @@ tarlnum_server = function(id, data_raw) {
     output$plot_compare = renderPlotly({
       req(data_compare)
 
+      yaxis = list(title = 'Share of students (%)', titlefont = list(size = 20))
       by_cols = c('treatment_id', 'treatment_wrap')
       metrics = get_metrics(data_compare()$long, data_compare()$wide, by_cols)
 
@@ -425,18 +458,21 @@ tarlnum_server = function(id, data_raw) {
       fig = get_barplot_summary(
         data_compare()$long, col = 'level_ace', fills = get_fills('ace'),
         by_treatment = TRUE)
-      fig_ace = ggplotly(fig, tooltip = 'text')
+      fig_ace = ggplotly(fig, tooltip = 'text') |>
+        layout(yaxis = yaxis)
 
       fig = get_barplot_summary(
         data_compare()$long, col = 'level_beginner',
         fills = get_fills('beginner'), by_treatment = TRUE) +
         theme(axis.title.y = element_blank())
-      fig_beg = ggplotly(fig, tooltip = 'text')
+      fig_beginner = ggplotly(fig, tooltip = 'text') |>
+        layout(yaxis = yaxis)
 
       fig = get_barplot_summary(
         data_compare()$wide, col = 'level_improved',
         fills = get_fills('improved'), by_treatment = TRUE, y_lims = c(0, 100))
-      fig_imp = ggplotly(fig, tooltip = 'text')
+      fig_improved = ggplotly(fig, tooltip = 'text') |>
+        layout(yaxis = yaxis)
 
       fig = ggplot(metrics$wide) +
         facet_wrap(vars(treatment_id), nrow = 1L) +
@@ -445,27 +481,26 @@ tarlnum_server = function(id, data_raw) {
               ymin = mean_improvement_per_week - sd_improvement_per_week,
               ymax = mean_improvement_per_week + sd_improvement_per_week,
               text = tt_improvement),
-          size = 3, linewidth = 2) +
+          size = 2, linewidth = 3) +
         labs(y = 'Number of levels per week') +
         theme(axis.title.x = element_blank())
-      fig_prog = ggplotly(fig, tooltip = 'text')
+      fig_progress = ggplotly(fig, tooltip = 'text') |>
+        layout(yaxis = list(
+          title = 'Number of levels per week', titlefont = list(size = 20)))
 
       annos = list(
-        list(x = 0, y = 1.04, text = 'Numeracy: division level'),
-        list(x = 0.55, y = 1.04, text = 'Innumeracy: beginner level'),
-        list(x = 0, y = 0.47, text = 'Improved at least one level'),
-        list(x = 0.55, y = 0.47, text = 'Progress toward numeracy'))
+        list(x = 0, y = 1.05, text = 'Numeracy: division level'),
+        list(x = 0.56, y = 1.05, text = 'Innumeracy: beginner level'),
+        list(x = 0, y = 0.46, text = 'Improved at least one level'),
+        list(x = 0.56, y = 0.46, text = 'Progress toward numeracy'))
       annos = lapply(annos, \(z) c(z, anno_base))
 
-      # yaxis_base = list(font = list(size = 20))
-      #     yaxis = c(yaxis_base, list(title = 'Share of students (%)')),
-      #     yaxis2 = c(yaxis_base, list(title = 'Number of levels improved')))
-
-      sp1 = subplot(fig_ace, fig_beg, margin = 0.05, titleY = TRUE)
-      sp2 = subplot(fig_imp, fig_prog, margin = 0.05, titleY = TRUE)
-      subplot(sp1, sp2, nrows = 2L, margin = 0.07, titleY = TRUE) |>
+      sp1 = subplot(fig_ace, fig_beginner, margin = 0.06, titleY = TRUE)
+      sp2 = subplot(fig_improved, fig_progress, margin = 0.06, titleY = TRUE)
+      subplot(sp1, sp2, nrows = 2L, margin = 0.09, titleY = TRUE) |>
         layout(annotations = annos, margin = list(t = 50))
     }) |>
-      bindCache(input$durations, input$regions, input$year_terms)
+      bindCache(
+        input$durations, input$regions, input$year_terms, input$baseline_levels)
   })
 }

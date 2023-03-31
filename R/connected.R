@@ -98,7 +98,7 @@ connected_server = function(id, data_raw) {
         data_long[, treatment_id := '0']
         data_wide[, treatment_id := '0']
         round_name = data_long$round_name[1L]
-        treatment_now = glue('Round {round_name},\nEither Treatment')
+        treatment_now = glue('Round {round_name},\nAny Treatment')
         data_long[, treatment_wrap := treatment_now]
         data_wide[, treatment_wrap := treatment_now]
       }
