@@ -16,46 +16,40 @@ tarlnum_ui = function(id) {
     mainPanel(
       tabsetPanel(
         tabPanel(
-          title = 'Key Outcomes - Overall',
+          title = 'Key Outcomes',
           br(),
-          plotlyOutput(ns('plot_kpis_overall'), height = height)
+          plotlyOutput(ns('plot_kpis'), height = height)
         ),
         tabPanel(
-          title = 'Key Outcomes - Trends',
+          title = 'Trends',
           fluidRow(
             column(
               width = 6,
-              plotlyOutput(
-                ns('plot_kpis_trends_ace'), height = glue('{ht + 50}px'))
+              plotlyOutput(ns('plot_trends_ace'), height = glue('{ht + 50}px'))
             ),
             column(
               width = 6,
-              plotlyOutput(
-                ns('plot_kpis_trends_beginner'), height = '350px')
+              plotlyOutput(ns('plot_trends_beginner'), height = '350px')
             )
           ),
           fluidRow(
             column(
               width = 6,
-              plotlyOutput(
-                ns('plot_kpis_trends_ace_diff'), height = height)
+              plotlyOutput(ns('plot_trends_ace_diff'), height = height)
             ),
             column(
               width = 6,
-              plotlyOutput(
-                ns('plot_kpis_trends_beginner_diff'), height = height)
+              plotlyOutput(ns('plot_trends_beginner_diff'), height = height)
             )
           ),
           fluidRow(
             column(
               width = 6,
-              plotlyOutput(
-                ns('plot_kpis_trends_improved'), height = height)
+              plotlyOutput(ns('plot_trends_improved'), height = height)
             ),
             column(
               width = 6,
-              plotlyOutput(
-                ns('plot_kpis_trends_total'), height = height)
+              plotlyOutput(ns('plot_trends_total'), height = height)
             )
           )
         ),
@@ -192,7 +186,7 @@ tarlnum_server = function(id, data_raw) {
       em(txt)
     })
 
-    output$plot_kpis_overall = renderPlotly({
+    output$plot_kpis = renderPlotly({
       req(data_filt)
 
       fig = get_barplot_summary(
@@ -253,7 +247,7 @@ tarlnum_server = function(id, data_raw) {
     lej = list(
       tracegroupgap = 0, x = 1, y = 1, xanchor = 'right', yanchor = 'bottom')
 
-    output$plot_kpis_trends_ace = renderPlotly({
+    output$plot_trends_ace = renderPlotly({
       req(data_trend)
       fig = get_trend_plot(
         data_trend()$long, x_col = 'year_term_num', y_col = 'pct_ace',
@@ -268,7 +262,7 @@ tarlnum_server = function(id, data_raw) {
         input$delivery_types, input$durations, input$regions, input$year_terms,
         input$baseline_levels)
 
-    output$plot_kpis_trends_beginner = renderPlotly({
+    output$plot_trends_beginner = renderPlotly({
       req(data_trend)
       fig = get_trend_plot(
         data_trend()$long, x_col = 'year_term_num', y_col = 'pct_beginner',
@@ -282,7 +276,7 @@ tarlnum_server = function(id, data_raw) {
         input$delivery_types, input$durations, input$regions, input$year_terms,
         input$baseline_levels)
 
-    output$plot_kpis_trends_ace_diff = renderPlotly({
+    output$plot_trends_ace_diff = renderPlotly({
       req(data_trend)
       fig = get_trend_plot(
         data_trend()$wide, x_col = 'year_term_num', y_col = 'pct_ace_diff',
@@ -296,7 +290,7 @@ tarlnum_server = function(id, data_raw) {
         input$delivery_types, input$durations, input$regions, input$year_terms,
         input$baseline_levels)
 
-    output$plot_kpis_trends_beginner_diff = renderPlotly({
+    output$plot_trends_beginner_diff = renderPlotly({
       req(data_trend)
       fig = get_trend_plot(
         data_trend()$wide, x_col = 'year_term_num', y_col = 'pct_beginner_diff',
@@ -310,7 +304,7 @@ tarlnum_server = function(id, data_raw) {
         input$delivery_types, input$durations, input$regions, input$year_terms,
         input$baseline_levels)
 
-    output$plot_kpis_trends_improved = renderPlotly({
+    output$plot_trends_improved = renderPlotly({
       req(data_trend)
       fig = get_trend_plot(
         data_trend()$wide, x_col = 'year_term_num', y_col = 'pct_improved',
@@ -324,7 +318,7 @@ tarlnum_server = function(id, data_raw) {
         input$delivery_types, input$durations, input$regions, input$year_terms,
         input$baseline_levels)
 
-    output$plot_kpis_trends_total = renderPlotly({
+    output$plot_trends_total = renderPlotly({
       req(data_trend)
       fig = get_trend_plot(
         data_trend()$wide, x_col = 'year_term_num', y_col = 'n_total',
@@ -386,39 +380,49 @@ tarlnum_server = function(id, data_raw) {
 
     output$table_by_school = renderDataTable({
       metrics = data_filt()$long[, .(
-        n_total = .N, pct_ace = 100 * sum(level_ace, na.rm = TRUE) / .N),
+        n_total = .N,
+        pct_ace = 100 * sum(level_ace, na.rm = TRUE) / .N,
+        pct_beginner = 100 * sum(level_beginner, na.rm = TRUE) / .N),
         keyby = .(delivery_type, region, school_name, school_id, timepoint)]
 
       metrics = dcast(
         metrics, formula('... ~ timepoint'),
-        value.var = c('n_total', 'pct_ace'))
+        value.var = c('n_total', 'pct_ace', 'pct_beginner'))
 
       metrics[, pct_ace_diff := pct_ace_Endline - pct_ace_Baseline]
+      metrics[
+        , pct_beginner_diff := pct_beginner_Baseline - pct_beginner_Endline]
       metrics[, n_total_Endline := NULL]
-      setorder(metrics, -pct_ace_diff)
+      setorder(metrics, -pct_ace_diff, pct_beginner_diff)
 
       cols_old = c(
-        'delivery_type', 'region', 'school_name', 'school_id',
-        'n_total_Baseline', 'pct_ace_Baseline',
-        'pct_ace_Endline', 'pct_ace_diff')
+        'delivery_type', 'region', 'school_name',
+        'pct_ace_diff', 'pct_ace_Baseline', 'pct_ace_Endline',
+        'pct_beginner_diff', 'pct_beginner_Baseline', 'pct_beginner_Endline',
+        'n_total_Baseline', 'school_id')
       cols_new = c(
-        'Delivery type', 'Region', 'School name', 'School ID',
-        'Number of students', 'Baseline numeracy (%)',
-        'Endline numeracy (%)', 'Change in numeracy (%-points)')
+        'Delivery model', 'Region', 'School name',
+        'Increased numeracy (%-pts)', 'Baseline numeracy (%)',
+        'Endline numeracy (%)',
+        'Decreased innumeracy (%-pts)', 'Baseline innumeracy (%)',
+        'Endline innumeracy (%)',
+        'Number of students', 'School ID')
       setnames(metrics, cols_old, cols_new)
+      setcolorder(metrics, cols_new)
 
       opts = list(pageLength = 25L)
       DT::datatable(metrics, rownames = FALSE, options = opts) |>
         formatStyle(
-          columns = 'Change in numeracy (%-points)',
+          columns = 'Increased numeracy (%-pts)',
           background = styleColorBar(c(0, 100), get_fills('ace')[1L]),
           backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat',
           backgroundPosition = 'center') |>
-        formatRound(
-          columns = c(
-            'Baseline numeracy (%)', 'Endline numeracy (%)',
-            'Change in numeracy (%-points)'),
-          digits = 1L) |>
+        formatStyle(
+          columns = 'Decreased innumeracy (%-pts)',
+          background = styleColorBar(c(0, 100), get_fills('beginner')[1L]),
+          backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat',
+          backgroundPosition = 'center') |>
+        formatRound(columns = cols_new[4:9], digits = 1L) |>
         formatStyle(colnames(metrics), lineHeight = '80%')
     })
 
@@ -441,7 +445,9 @@ tarlnum_server = function(id, data_raw) {
       by_cols = c('treatment_id', 'treatment_wrap', 'duration')
       wide = get_data_wide(long, by_cols)
       list(long = long, wide = wide)
-    })
+    }) |>
+      bindCache(
+        input$durations, input$regions, input$year_terms, input$baseline_levels)
 
     output$plot_compare = renderPlotly({
       req(data_compare)
