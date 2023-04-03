@@ -134,7 +134,7 @@ get_round_text = function(data_proc) {
 get_fills = function(type, palette = 'Blues') {
   switch(
     type, total = 'black', beginner = c('#fb9a99', '#e31a1c'),
-    ace = c('#a6cee3', '#1f78b4'), improved = '#33a02c',
+    ace = c('#a6cee3', '#1f78b4'), improved = '#b2df8a', #'#33a02c',
     full = rev(c(
       '#EF5A5B', RColorBrewer::brewer.pal(n = 5L, name = palette)[-1L])))
 }

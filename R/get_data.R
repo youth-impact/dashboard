@@ -131,6 +131,8 @@ get_data_connected = function(data_raw, keep_missing = c()) {
   data_wide[, student_level_diff :=
               student_level_endline - student_level_baseline]
   data_wide[, level_improved := student_level_diff > 0]
+  # data_wide[
+  #   , level_improved := (student_level_diff > 0) | (student_level_endline == 4)]
 
   list(data_wide = data_wide, data_long = data_long, rounds = rounds,
        treatments = treatments, arms = arms, numeracy_levels = numeracy_levels)
@@ -215,6 +217,8 @@ get_data_wide = function(data_long, by_cols, time_col = 'timepoint') {
   envir = list(x = time_cols[1L], y = time_cols[length(time_cols)])
   data_wide[, student_level_diff := y - x, env = envir]
   setkeyv(data_wide, by_cols)
-  set(data_wide, j = 'level_improved', value = data_wide$student_level_diff > 0)
+  data_wide[, level_improved := student_level_diff > 0]
+  # data_wide[, level_improved := (student_level_diff > 0) |
+  #             (student_level_fct_Endline == 'Division')]
   set(data_wide, j = time_col, value = 'Baseline to Endline')[]
 }
