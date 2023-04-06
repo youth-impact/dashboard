@@ -1,3 +1,53 @@
+get_data_raw = function(folder_url) {
+  files = get_file_metadata(folder_url)
+  files[, drive_resource := NULL]
+
+  # round trip to simplify all.equal
+  local_file = withr::local_tempfile()
+  fwrite(files, local_file)
+  files_new = fread(local_file)
+  cache_dir = '_cache'
+
+  metadata_path = '_file_metadata.csv'
+  if (file.exists(metadata_path)) {
+    files_old = fread(metadata_path)
+    files_equal = all.equal(files_new, files_old[, !'path'])
+    paths_exist = (length(files_old$path) > 0) &&
+      all(file.exists(files_old$path))
+  } else {
+    files_equal = FALSE
+    paths_exist = FALSE
+  }
+
+  if (isTRUE(files_equal) && paths_exist) {
+    files[, path := files_old$path]
+  } else {
+    if (dir.exists(cache_dir)) unlink(cache_dir, recursive = TRUE)
+    dir.create(cache_dir)
+    local_paths = sapply(seq_len(nrow(files)), \(i) {
+      local_path = file.path(cache_dir, files$name[i])
+      drive_download(files$id[i], local_path, overwrite = TRUE)
+      local_path
+    })
+    files[, path := local_paths]
+    fwrite(files, metadata_path)
+  }
+
+  data_raw = lapply(seq_len(nrow(files)), \(i) {
+    if (endsWith(files$name[i], '.csv')) {
+      fread(files$path[i])
+    } else if (endsWith(files$name[i], '.dta')) {
+      setDT(haven::read_dta(files$path[i]))
+    } else {
+      NULL
+    }
+  })
+
+  names(data_raw) = tools::file_path_sans_ext(files$name)
+  data_raw$`_file_metadata` = files
+  data_raw # list of data.tables
+}
+
 # load raw data from the Google Drive folder
 get_data_raw_server = function(id, folder_url) {
   moduleServer(id, function(input, output, session) {
@@ -14,79 +64,161 @@ get_data_raw_server = function(id, folder_url) {
         paste(files$name, files$modified_time, collapse = ' __ ')
       },
 
-      # download and read csv and dta files in the given folder
-      valueFunc = \() {
-        files = get_file_metadata(folder_url)
-
-        data_raw = lapply(seq_len(nrow(files)), \(i) {
-          local_file = withr::local_tempfile()
-          drive_download(files$id[i], local_file)
-          if (endsWith(files$name[i], '.csv')) {
-            fread(local_file)
-          } else if (endsWith(files$name[i], '.dta')) {
-            setDT(haven::read_dta(local_file))
-          } else {
-            NULL
-          }
-        })
-
-        names(data_raw) = tools::file_path_sans_ext(files$name)
-        data_raw$`_file_metadata` = files[, !'drive_resource']
-        data_raw # list of data.tables
-      }
+      # download and read files in the given folder
+      valueFunc = \() get_data_raw(folder_url)
     )
   })
 }
 
-# process raw data for visualization
-get_data_proc_server = function(id, data_raw, conn_keep_missing) {
-  moduleServer(id, function(input, output, session) {
+get_data_connected = function(data_raw, keep_missing = c()) {
+  data_wide = copy(data_raw$connected_data)
+  rounds = copy(data_raw$connected_rounds)
+  arms = copy(data_raw$connected_arms)
+  treatments = copy(data_raw$connected_treatments)
+  numeracy_levels = copy(data_raw$numeracy_levels)
 
-    data_proc = reactive({
-      req(data_raw, conn_keep_missing)
+  rounds[, label := glue(
+    '{round_name} ({year}, Term {term})', .envir = .SD)]
 
-      data = copy(data_raw()$connected_data)
-      rounds = copy(data_raw()$connected_rounds)
-      arms = copy(data_raw()$connected_arms)
-      treatments = copy(data_raw()$connected_treatments)
-      levs = copy(data_raw()$connected_levels)
+  # use factors to ensure proper ordering in plots
+  arms[, treatment_name := forcats::fct_reorder(
+    treatment_name, treatment_id, .fun = \(x) x[1L])]
+  # numeracy_levels[, level_name := factor(level_name, rev(level_name))]
+  numeracy_levels[, level_name := factor(level_name, level_name)]
 
-      rounds[, label := glue(
-        '{round_name} ({year}, Term {term})', .envir = .SD)]
+  # basic renaming and selecting particular columns
+  data_wide = data_wide[, .(
+    round = as.integer(round),
+    treatment,
+    facilitator_name = as.character(facilitator_i),
+    student_id = sprintf('P%08d', seq_len(.N)),
+    student_level_baseline = as.integer(stud_level_bl),
+    student_level_endline = as.integer(stud_level),
+    student_sex_baseline = as.character(forcats::as_factor(stud_sex_bl)),
+    region_baseline = forcats::as_factor(region_bl)
+  )]
+  data_wide[round == 5L & treatment == '', treatment := 'Caregiver Choice']
 
-      # use factors to ensure proper ordering in plots
-      arms[, treatment_name := forcats::fct_reorder(
-        treatment_name, treatment_id, .fun = \(x) x[1L])]
-      levs[, level_name := factor(level_name, level_name)]
+  # filter missing data
+  if (!('baseline' %in% keep_missing)) {
+    data_wide = data_wide[!is.na(student_level_baseline)]
+  }
+  if (!('endline' %in% keep_missing)) {
+    data_wide = data_wide[!is.na(student_level_endline)]
+  }
 
-      # basic renaming and selecting particular columns
-      data = get_clean_connected_data(data, conn_keep_missing()) |>
-        merge(arms, by = c('round', 'treatment'))
+  # add and remove columns
+  data_wide = merge(data_wide, arms, by = c('round', 'treatment'))
+  setnames(data_wide, 'round', 'round_name')
+  data_wide[, treatment := NULL]
+  arms[, c('round', 'treatment') := NULL]
+  data_wide[, treatment_wrap := str_wrap(treatment_name, 20)]
 
-      # remove unused columns
-      setnames(data, 'round', 'round_name')
-      data[, treatment := NULL]
-      arms[, c('round', 'treatment') := NULL]
+  # convert to long format for some plots
+  meas_vars = c('student_level_baseline', 'student_level_endline')
+  data_long = melt(
+    data_wide, measure.vars = meas_vars,
+    variable.name = 'timepoint', value.name = 'level_id') |>
+    merge(numeracy_levels, by = 'level_id', all.x = TRUE, sort = FALSE)
 
-      data[, student_level_diff := student_level_endline - student_level_baseline]
-      data[, improved := student_level_diff > 0] # moved up at least one level
+  data_long[, timepoint := factor(
+    timepoint, meas_vars, c('Baseline', 'Endline'))]
+  data_long[, level_beginner := level_id == 0]
+  data_long[, level_ace := level_id == 4]
 
-      # convert to long format for some plots
-      meas_vars = c('student_level_baseline', 'student_level_endline')
-      data_long = melt(
-        data, measure.vars = meas_vars,
-        variable.name = 'time', value.name = 'level_id') |>
-        merge(levs, by = 'level_id', all.x = TRUE, sort = FALSE)
+  # add other columns for plotting
+  data_wide[, timepoint := 'Baseline to Endline']
+  data_wide[, student_level_diff :=
+              student_level_endline - student_level_baseline]
+  data_wide[, level_improved := student_level_diff > 0]
+  # data_wide[
+  #   , level_improved := (student_level_diff > 0) | (student_level_endline == 4)]
 
-      data_long[, time := factor(time, meas_vars, c('Baseline', 'Endline'))]
-      data_long[, cannot_add := level_id == 0] # tarl innumeracy
-      data_long[, can_divide := level_id == 4] # tarl numeracy
+  list(data_wide = data_wide, data_long = data_long, rounds = rounds,
+       treatments = treatments, arms = arms, numeracy_levels = numeracy_levels)
+}
 
-      # add time column for plotting
-      data[, time := 'Baseline to Endline']
+get_data_tarlnum = function(data_raw, keep_missing = 'Midline') {
+  data_long = copy(data_raw$tarl_data)
+  numeracy_levels = copy(data_raw$numeracy_levels)
 
-      list(data = data, data_long = data_long, rounds = rounds,
-           treatments = treatments, arms = arms, levs = levs)
-    })
+  data_long = unique(data_long)[uid_s != '']
+  # numeracy_levels[, level_name := factor(level_name, rev(level_name))]
+  numeracy_levels[, level_name := factor(level_name, level_name)]
+
+  setnames(data_long, 'round', 'timepoint')
+  setnames(data_long, \(x) str_replace(x, '^stu_', 'student_'))
+  setcolorder(data_long, 'timepoint', before = 'student_level')
+
+  data_long[, term := as.integer(str_extract(term, '[0-9]+$'))]
+  data_long[, delivery_type := fifelse(
+    delivery_type == 'Model School', 'Direct', 'Government')]
+
+  data_long[, duration := as.integer(str_extract(imp_length, '^[0-9]+'))]
+  data_long[, imp_length := NULL]
+
+  data_long[, timepoint := factor(
+    timepoint, c('Baseline', 'Midline', 'Endline'))]
+  data_long[, student_level_fct := factor(
+    student_level, levels(numeracy_levels$level_name))]
+  data_long[, student_id := paste(
+    year, term, delivery_type, duration, region, school_name, uid_s, sep = '|')]
+  data_long[, student_level := NULL]
+  data_long[, student_level_int := as.integer(student_level_fct)]
+
+  # remove rows missing duration
+  data_long = data_long[!is.na(duration)]
+
+  # remove data missing certain timepoints
+  timepoints_req = setdiff(levels(data_long$timepoint), keep_missing)
+  data_long = data_long[
+    , if (all(timepoints_req %in% timepoint[!is.na(student_level_int)])) .SD,
+    by = student_id]
+  data_long[, timepoint := factor(timepoint, timepoints_req)]
+
+  # remove rows for midline
+  data_long = data_long[timepoint != 'Midline']
+
+  data_long[, year_term := paste0(year, ' T', term)]
+  data_long[, year_term_num := round(year + (term - 1) / 3, 2)]
+  data_long[, level_beginner := student_level_fct == 'Beginner']
+  data_long[, level_ace := student_level_fct == 'Division']
+
+  setkey(data_long) # important this includes timepoint for diff student_level
+  list(data_long = data_long[])
+}
+
+get_data_filtered = function(x, filt = data.table(), filt_by_student = NULL) {
+  y = lapply(x, \(d) {
+    d_new = if (any(colnames(filt) %in% colnames(d))) {
+      by_cols = intersect(colnames(filt), colnames(d))
+      merge(d, filt, by = by_cols, sort = FALSE, allow.cartesian = TRUE)
+    } else {
+      copy(d)
+    }
+    if (!is.null(filt_by_student) &&
+        all(colnames(filt_by_student) %in% colnames(d_new))) {
+      ok = d_new[filt_by_student, .(student_id), on = .NATURAL, nomatch = NULL]
+      d_new = d_new[unique(ok), on = .NATURAL, nomatch = NULL]
+    } else {
+      d_new
+    }
   })
+  names(y) = names(x)
+  y
+}
+
+get_data_wide = function(data_long, by_cols, time_col = 'timepoint') {
+  form = paste(paste(c('student_id', by_cols), collapse = '+'), '~', time_col)
+  data_wide = dcast(
+    data_long, form, value.var = c('student_level_int', 'student_level_fct'))
+  time_cols = paste(
+    'student_level_int', sort(unique(data_long[[time_col]])), sep = '_')
+  envir = list(x = time_cols[1L], y = time_cols[length(time_cols)])
+  data_wide[, student_level_diff := y - x, env = envir]
+  setkeyv(data_wide, by_cols)
+  data_wide[, level_improved := student_level_diff > 0]
+  # data_wide[, level_improved := (student_level_diff > 0) |
+  #             (student_level_fct_Endline == 'Division')]
+  set(data_wide, j = time_col, value = 'Baseline to Endline')[]
 }

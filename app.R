@@ -1,9 +1,9 @@
-# create the ui object for the shiny app.
-# separate tabPanels for Reach, ConnectEd, TaRL, Zones, and Status.
-# each program then has its own set of tabPanels.
+# create the ui object for the shiny app
+
 ui = navbarPage(
   theme = bslib::bs_theme(bootswatch = 'cosmo'),
   title = 'Youth Impact',
+  selected = 'ConnectEd', # temporary
 
   tabPanel(
     title = 'Reach',
@@ -11,23 +11,23 @@ ui = navbarPage(
   ),
 
   tabPanel(
-    title = 'ConnectEd',
-    tabsetPanel(
-      connected_pooled_ui('connected_pooled'),
-      connected_ab_summary_ui('connected_ab_summary'),
-      connected_ab_detailed_ui('connected_ab_detailed'),
-      connected_advanced_ui('connected_advanced')
-    )
-  ),
-
-  tabPanel(
-    title = 'TaRL',
-    'tarl stuff' # placeholder
-  ),
-
-  tabPanel(
     title = 'Zones',
     'zones stuff' # placeholder
+  ),
+
+  tabPanel(
+    title = 'ConnectEd',
+    connected_ui('connected')
+  ),
+
+  tabPanel(
+    title = 'TaRL Numeracy',
+    tarlnum_ui('tarlnum')
+  ),
+
+  tabPanel(
+    title = 'TaRL Literacy',
+    'tarl literacy stuff' # placeholder
   ),
 
   tabPanel(
@@ -44,22 +44,11 @@ server = function(input, output, session) {
   # create display elements for status of raw data files
   data_status_server('data_status', data_raw)
 
-  # set advanced options for displaying ConnectEd results
-  conn_keep_missing = connected_advanced_server('connected_advanced')
+  # ConnectEd
+  connected_server('connected', data_raw)
 
-  # process raw data for visualization
-  data_proc = get_data_proc_server('get_data_proc', data_raw, conn_keep_missing)
-
-  # create display elements for ConnectEd pooled results
-  connected_pooled_server('connected_pooled', data_proc, conn_keep_missing)
-
-  # create display elements for ConnectEd A/B Summary results
-  connected_ab_summary_server(
-    'connected_ab_summary', data_proc, conn_keep_missing)
-
-  # create display elements for ConnectEd A/B Detailed results
-  connected_ab_detailed_server(
-    'connected_ab_detailed', data_proc, conn_keep_missing)
+  # TaRL numeracy
+  tarlnum_server('tarlnum', data_raw)
 }
 
 # create the shiny app object
