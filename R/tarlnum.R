@@ -8,7 +8,7 @@ tarlnum_ui = function(id) {
 
   sidebarLayout(
     sidebarPanel(
-      h5('Display options'),
+      h5('Display Options'),
       uiOutput(ns('ui_input')),
       uiOutput(ns('ui_counts')),
       width = 3

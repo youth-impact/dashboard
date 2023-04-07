@@ -10,10 +10,10 @@ ui = navbarPage(
     'reach stuff' # placeholder
   ),
 
-  tabPanel(
-    title = 'Zones',
-    'zones stuff' # placeholder
-  ),
+  # tabPanel(
+  #   title = 'Zones',
+  #   'zones stuff' # placeholder
+  # ),
 
   tabPanel(
     title = 'ConnectEd',
@@ -25,15 +25,15 @@ ui = navbarPage(
     tarlnum_ui('tarlnum')
   ),
 
-  tabPanel(
-    title = 'TaRL Literacy',
-    'tarl literacy stuff' # placeholder
-  ),
+  # tabPanel(
+  #   title = 'TaRL Literacy',
+  #   'tarl literacy stuff' # placeholder
+  # ),
 
-  tabPanel(
-    'Status',
-    data_status_ui('data_status')
-  )
+  # tabPanel(
+  #   'Status',
+  #   data_status_ui('data_status')
+  # )
 )
 
 # create the server object for the shiny app
