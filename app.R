@@ -3,11 +3,10 @@
 ui = navbarPage(
   theme = bslib::bs_theme(bootswatch = 'cosmo'),
   title = 'Youth Impact',
-  selected = 'ConnectEd', # temporary
 
   tabPanel(
     title = 'Reach',
-    'reach stuff' # placeholder
+    reach_ui('reach')
   ),
 
   # tabPanel(
@@ -29,26 +28,21 @@ ui = navbarPage(
   #   title = 'TaRL Literacy',
   #   'tarl literacy stuff' # placeholder
   # ),
-
-  # tabPanel(
-  #   'Status',
-  #   data_status_ui('data_status')
-  # )
 )
 
 # create the server object for the shiny app
 server = function(input, output, session) {
-  # load raw data from the Google Drive folder
-  data_raw = get_data_raw_server('get_data_raw', params$folder_url)
+  # load data
+  data_proc = get_data_server('get_data', params$project, params$dataset)
 
-  # create display elements for status of raw data files
-  data_status_server('data_status', data_raw)
+  # Reach
+  reach_server('reach', data_proc)
 
   # ConnectEd
-  connected_server('connected', data_raw)
+  connected_server('connected', data_proc)
 
   # TaRL numeracy
-  tarlnum_server('tarlnum', data_raw)
+  tarlnum_server('tarlnum', data_proc)
 }
 
 # create the shiny app object

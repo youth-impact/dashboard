@@ -1,10 +1,9 @@
 library('checkmate')
-library('cowplot')
+library('DBI')
 library('rlang') # load before data.table to avoid masking :=
 library('data.table')
 library('ggplot2')
 library('glue')
-library('googledrive')
 library('plotly')
 library('shiny')
 library('shinyWidgets')
@@ -16,10 +15,6 @@ theme_set(
   theme_bw() +
     theme(
       text = element_text(size = 15),
-      # axis.title.y = element_text(size = 18),
-      # plot.title = element_text(size = 18),
-      # legend.title = element_text(size = 18),
-      # strip.text = element_text(size = 14),
       axis.text = element_text(color = 'black'),
       legend.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = 'cm')))
 
@@ -37,58 +32,41 @@ anno_base = list(
 # load parameters
 params = yaml::read_yaml('params.yaml')
 
-# authorize googledrive to access files
-if (Sys.getenv('GOOGLE_TOKEN') == '') {
-  drive_auth(email = params$email)
+token_path = if (Sys.getenv('GOOGLE_TOKEN') == '') {
+  file.path('secrets', params$token)
 } else {
-  drive_auth(path = Sys.getenv('GOOGLE_TOKEN'))
+  Sys.getenv('GOOGLE_TOKEN')
+}
+bigrquery::bq_auth(path = token_path)
+
+########################################
+
+get_data_filtered = function(x, filt = data.table(), filt_by_student = NULL) {
+  y = lapply(x, \(d) {
+    d_new = if (any(colnames(filt) %in% colnames(d))) {
+      by_cols = intersect(colnames(filt), colnames(d))
+      merge(d, filt, by = by_cols, sort = FALSE, allow.cartesian = TRUE)
+    } else {
+      copy(d)
+    }
+    if (!is.null(filt_by_student) &&
+        all(colnames(filt_by_student) %in% colnames(d_new))) {
+      ok = d_new[filt_by_student, .(student_id), on = .NATURAL, nomatch = NULL]
+      d_new = d_new[unique(ok), on = .NATURAL, nomatch = NULL]
+    } else {
+      d_new
+    }
+  })
+  names(y) = names(x)
+  y
 }
 
 ########################################
 
-#' Get metadata for files in a Google Drive folder
-#'
-#' This is a thin wrapper around [googledrive::drive_ls()].
-#'
-#' @param folder_url String of folder url.
-#'
-#' @return `data.table` containing one row per file, excluding files that start
-#'   with "_".
-get_file_metadata = function(folder_url) {
-  assert_string(folder_url)
-  files = setDT(drive_ls(folder_url))
-  files = files[!startsWith(name, '_')]
-  setorder(files, name)
-  files[, modified_time := sapply(files$drive_resource, \(f) f$modifiedTime)]
-  files[]
-}
-
-########################################
-
-get_picker_options = function(...) {
-  pickerOptions(actionsBox = TRUE, selectedTextFormat = 'static', ...)
-}
-
-#' Get choices for UI input
-#'
-#' This function finds unique rows of a `data.table` to use as choices for UI
-#' input, such as [shiny::radioButtons()] or [shiny::checkboxGroupInput()].
-#'
-#' @param d `data.table` that has columns corresponding to `name_col` and
-#'   `val_col`.
-#' @param name_col String indicating column to use for names.
-#' @param val_col String indicating column to use for values.
-#'
-#' @return Named list, where names will be displayed to the user and values will
-#'   be used within the app.
-get_choices = function(d, name_col = 'label', val_col = 'round_id') {
-  assert_data_table(d)
-  assert_subset(c(name_col, val_col), colnames(d))
-  d_unique = unique(d[, c(..name_col, ..val_col)])
-  setorderv(d_unique, val_col)
-  choices = as.list(d_unique[[val_col]])
-  names(choices) = paste('Round', d_unique[[name_col]])
-  choices
+get_picker_options = function(noneSelectedText, ...) {
+  pickerOptions(
+    actionsBox = TRUE, selectedTextFormat = 'static',
+    noneSelectedText = noneSelectedText, ...)
 }
 
 #' Get narrative text describing a round of ConnectEd
@@ -100,27 +78,24 @@ get_choices = function(d, name_col = 'label', val_col = 'round_id') {
 #' @param round_id_now single value indicating current round.
 #'
 #' @return HTML tags.
-get_round_text = function(data_proc) {
-  data_now = data_proc$data_wide[, .N, keyby = treatment_id]
+get_round_text = function(data_filt) {
+  rounds_now = data_filt$connected_rounds
 
   overview_text = p(
-    h5(glue('Round {data_proc$rounds$round_name} Overview')),
-    strong('Purpose: '), data_proc$rounds$purpose, br(),
-    strong('Conclusion: '), data_proc$rounds$conclusion)
+    h5(paste(rounds_now$round_name, 'Overview')),
+    strong('Purpose: '), rounds_now$purpose, br(),
+    strong('Conclusion: '), rounds_now$conclusion)
 
-  treatments_now = merge(
-    data_proc$treatments, data_proc$arms,
-    by = c('treatment_id', 'treatment_name')) |>
-    merge(data_now, by = 'treatment_id')
-  setorder(treatments_now, arm_id)
-  n_students = sum(treatments_now$N)
+  data_now = merge(
+    data_filt$connected_wide[, .N, keyby = arm_id],
+    data_filt$connected_arms, by = 'arm_id')
+  n_students = sum(data_now$N)
 
-  treatment_text = lapply(seq_len(nrow(treatments_now)), \(i) {
-    r = treatments_now[i]
+  treatment_text = lapply(seq_len(nrow(data_now)), \(i) {
     list(
-      strong(r$treatment_name), '(',
-      em(glue('{r$N} students'), .noWS = 'outside'),
-      paste('):', r$treatment_description), br())
+      strong(data_now[i]$treatment_name), '(',
+      em(glue('{data_now[i]$N} students'), .noWS = 'outside'),
+      paste('):', data_now[i]$treatment_description), br())
   })
 
   round_text = tagList(
@@ -326,7 +301,7 @@ get_plot_kpis = function(data_long, data_wide) {
   annos = list(
     list(x = 0, y = y[1L], text = 'Numeracy: division level'),
     list(x = 0, y = y[2L], text = 'Innumeracy: beginner level'),
-    list(x = 0, y = y[3L], text = 'Improved at least one level'))
+    list(x = 0, y = y[3L], text = 'Improved a level (or more)'))
   annos = lapply(annos, \(z) c(z, anno_base))
 
   subplot(
@@ -359,28 +334,16 @@ get_metrics = function(data_long, data_wide, by_cols, time_col = 'timepoint') {
     keyby = by_cols, .SDcols = c(n_cols, pct_cols)]
   setnames(a2, c(n_cols, pct_cols), paste0(c(n_cols, pct_cols), '_diff'))
 
-  # a2 = dcast(
-  #   a1, formula(paste(paste(by_cols, collapse = '+'), '~', time_col)),
-  #   value.var = c('n_total', n_cols, pct_cols))
-  #
-  # time_levels = levels(data_long[[time_col]])
-  # time_levels = c(time_levels[1L], tail(time_levels, 1L))
-  # for (col in c(n_cols, pct_cols)) {
-  #   cols_now = sapply(time_levels, \(x) paste(col, x, sep = '_'))
-  #   set(a2, j = paste0(col, '_diff'),
-  #       value = a2[[cols_now[2L]]] - a2[[cols_now[1L]]])
-  # }
-
   # metrics between timepoints
-  days_per_week = 5 # assumes duration is a column in data_wide
+  days_per_week = 5 # assumes duration_days is a column in data_wide
 
   a3 = data_wide[, .(
     mean_improvement = mean(student_level_diff, na.rm = TRUE),
     sd_improvement = sd(student_level_diff, na.rm = TRUE),
     mean_improvement_per_week =
-      mean(student_level_diff / duration, na.rm = TRUE) * days_per_week,
+      mean(student_level_diff / duration_days, na.rm = TRUE) * days_per_week,
     sd_improvement_per_week =
-      sd(student_level_diff / duration, na.rm = TRUE) * days_per_week,
+      sd(student_level_diff / duration_days, na.rm = TRUE) * days_per_week,
     n_improved = sum(student_level_diff > 0, na.rm = TRUE),
     pct_improved = 100 * sum(student_level_diff > 0, na.rm = TRUE) / .N),
     keyby = c(by_cols, time_col)]

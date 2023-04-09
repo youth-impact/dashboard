@@ -66,6 +66,7 @@ tarlnum_ui = function(id) {
         tabPanel(
           title = 'Outcomes by School',
           br(),
+          uiOutput(ns('ui_school')),
           div(dataTableOutput(ns('table_by_school')), style = 'font-size:80%'),
         ),
         tabPanel(
@@ -80,135 +81,118 @@ tarlnum_ui = function(id) {
   )
 }
 
-tarlnum_server = function(id, data_raw) {
+tarlnum_server = function(id, data_proc) {
   moduleServer(id, function(input, output, session) {
-
-    data_proc = reactive({
-      req(data_raw)
-      get_data_tarlnum(data_raw())
-    })
 
     output$ui_input = renderUI({
       req(data_proc)
       ns = session$ns
+      long = data_proc()$tarlnum_long
 
-      delivery_types = sort(unique(data_proc()$data_long$delivery_type))
-      delivery_types_options = get_picker_options(
-        noneSelectedText = 'Delivery models')
-
-      durations = sort(unique(data_proc()$data_long$duration))
-      durations_options = get_picker_options(
-        noneSelectedText = 'Durations (days)')
-
-      regions = sort(unique(data_proc()$data_long$region))
-      regions_options = get_picker_options(
-        noneSelectedText = 'Regions')
-
-      year_terms = sort(unique(data_proc()$data_long$year_term))
-      year_terms_options = get_picker_options(
-        noneSelectedText = 'Years and terms')
-
-      baseline_levels = levels(data_proc()$data_long$student_level_fct)
-      baseline_levels_options = get_picker_options(
-        noneSelectedText = 'Levels at baseline')
+      cols = c('delivery_model', 'duration_days', 'region', 'year_term')
+      choices = lapply(cols, \(col) sort(unique(long[[col]])))
+      names(choices) = cols
+      choices$baseline_level = levels(long$student_level_str)
 
       tagList(
         pickerInput(
-          inputId = ns('delivery_types'),
-          choices = delivery_types,
-          selected = delivery_types,
+          inputId = ns('delivery_model'),
+          choices = choices$delivery_model,
+          selected = choices$delivery_model,
           multiple = TRUE,
-          options = delivery_types_options
+          options = get_picker_options('Delivery models')
         ),
         pickerInput(
-          inputId = ns('durations'),
-          choices = durations,
-          selected = durations,
+          inputId = ns('duration_days'),
+          choices = choices$duration_days,
+          selected = choices$duration_days,
           multiple = TRUE,
-          options = durations_options
+          options = get_picker_options('Durations (days)')
         ),
         pickerInput(
-          inputId = ns('regions'),
-          choices = regions,
-          selected = regions,
+          inputId = ns('region'),
+          choices = choices$region,
+          selected = choices$region,
           multiple = TRUE,
-          options = regions_options
+          options = get_picker_options('Regions')
         ),
         pickerInput(
-          inputId = ns('year_terms'),
-          choices = year_terms,
-          selected = year_terms,
+          inputId = ns('year_term'),
+          choices = choices$year_term,
+          selected = choices$year_term,
           multiple = TRUE,
-          options = year_terms_options
+          options = get_picker_options('Years and terms')
         ),
         pickerInput(
-          inputId = ns('baseline_levels'),
-          choices = baseline_levels,
-          selected = baseline_levels,
+          inputId = ns('baseline_level'),
+          choices = choices$baseline_level,
+          selected = choices$baseline_level,
           multiple = TRUE,
-          options = baseline_levels_options
+          options = get_picker_options('Levels at baseline')
         )
       )
     })
 
     filt = reactive({
-      req(input$delivery_types, input$durations,
-          input$regions, input$year_terms)
+      req(input$delivery_model, input$duration_days,
+          input$region, input$year_term)
       CJ(
-        delivery_type = input$delivery_types,
-        duration = as.integer(input$durations),
-        region = input$regions,
-        year_term = input$year_terms)
+        delivery_model = input$delivery_model,
+        duration_days = as.integer(input$duration_days),
+        region = input$region,
+        year_term = input$year_term)
     })
 
     data_filt = reactive({
-      req(data_proc, filt, input$baseline_levels)
+      req(data_proc, filt, input$baseline_level)
       filt_by_student = data.table(
-        timepoint = 'Baseline', student_level_fct = input$baseline_levels)
-      long = get_data_filtered(data_proc(), filt(), filt_by_student)$data_long
-      wide = get_data_wide(long, c('duration', 'year_term_num', 'year_term'))
-      list(long = long, wide = wide)
+        timepoint = 'Baseline', student_level_str = input$baseline_level)
+      data_filt = get_data_filtered(
+        data_proc()[c('tarlnum_long', 'tarlnum_wide')], filt(),
+        filt_by_student)
+      data_filt$tarlnum_wide = data_filt$tarlnum_wide[
+        student_id %in% data_filt$tarlnum_long$student_id]
+      data_filt
     })
 
     output$ui_counts = renderUI({
       req(data_filt)
-      # is actually unique student tarl-round combos, e.g.,
-      # the same person participating in two years would get counted twice
-      counts = data_filt()$long[, .(
-        n_students = uniqueN(student_id)), keyby = delivery_type]
+      counts = data_filt()$tarlnum_long[, .(
+        n_students = uniqueN(student_id)), keyby = delivery_model]
+
       n_total = scales::label_comma()(sum(counts$n_students))
+      n_total_txt = glue('{n_total} students in total')
+
       counts[, n_students := scales::label_comma()(n_students)]
       txt = lapply(glue(
-        '{counts$n_students} students ({counts$delivery_type})'),
+        '{counts$n_students} students ({counts$delivery_model})'),
         \(x) list(x, br()))
-      txt = c(unlist(txt, recursive = FALSE),
-              list(glue('{n_total} students in total')))
-      em(txt)
+      em(c(unlist(txt, recursive = FALSE), list(n_total_txt)))
     })
 
     output$plot_kpis = renderPlotly({
       req(data_filt)
 
       fig = get_barplot_summary(
-        data_filt()$long, col = 'level_ace', fills = get_fills('ace'))
+        data_filt()$tarlnum_long, col = 'level_ace', fills = get_fills('ace'))
       fig_ace = ggplotly(fig, tooltip = 'text')
 
       fig = get_barplot_summary(
-        data_filt()$long, col = 'level_beginner',
+        data_filt()$tarlnum_long, col = 'level_beginner',
         fills = get_fills('beginner')) +
         theme(axis.title.y = element_blank())
       fig_beginner = ggplotly(fig, tooltip = 'text')
 
       fig = get_barplot_summary(
-        data_filt()$wide, col = 'level_improved', fills = get_fills('improved'),
-        y_lims = c(0, 100)) +
+        data_filt()$tarlnum_wide, col = 'level_improved',
+        fills = get_fills('improved'), y_lims = c(0, 100)) +
         theme(axis.title.y = element_blank())
       fig_improved = ggplotly(fig, tooltip = 'text')
 
       annos = list(
         list(x = 0, y = 1, text = 'Numeracy: division level'),
         list(x = 0.405, y = 1, text = 'Innumeracy: beginner level'),
-        list(x = 0.775, y = 1, text = 'Improved at least\none level'))
+        list(x = 0.775, y = 1, text = 'Improved a level\n(or more)'))
       annos = lapply(annos, \(z) c(z, anno_base))
 
       subplot(
@@ -217,15 +201,15 @@ tarlnum_server = function(id, data_raw) {
         layout(annotations = annos, margin = list(t = 55))
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms,
-        input$baseline_levels)
+        input$delivery_model, input$duration_days, input$region, input$year_term,
+        input$baseline_level)
 
     data_trend = reactive({
       req(data_filt)
 
-      by_cols = c('year_term_num', 'year_term', 'duration')
-      data_wide = get_data_wide(data_filt()$long, by_cols)
-      metrics = get_metrics(data_filt()$long, data_wide, by_cols[1:2])
+      metrics = get_metrics(
+        data_filt()$tarlnum_long, data_filt()$tarlnum_wide,
+        c('year_term_num', 'year_term'))
 
       metrics$long[, tt_ace := get_tooltips(n_ace, pct_ace, pre = year_term)]
       metrics$long[, tt_beginner := get_tooltips(
@@ -259,8 +243,8 @@ tarlnum_server = function(id, data_raw) {
           annotations = c(anno, anno_base), margin = marj, legend = lej)
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms,
-        input$baseline_levels)
+        input$delivery_model, input$duration_days, input$region, input$year_term,
+        input$baseline_level)
 
     output$plot_trend_beginner = renderPlotly({
       req(data_trend)
@@ -273,8 +257,8 @@ tarlnum_server = function(id, data_raw) {
         layout(annotations = c(anno, anno_base), margin = marj, legend = lej)
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms,
-        input$baseline_levels)
+        input$delivery_model, input$duration_days, input$region, input$year_term,
+        input$baseline_level)
 
     output$plot_trend_ace_diff = renderPlotly({
       req(data_trend)
@@ -282,13 +266,13 @@ tarlnum_server = function(id, data_raw) {
         data_trend()$wide, x_col = 'year_term_num', y_col = 'pct_ace_diff',
         text_col = 'tt_ace_diff', fill = get_fills('ace')[1L], shape = 21,
         size = 2, stroke = 0)
-      anno = list(x = 0, y = 1, text = 'Increase in numeracy')
+      anno = list(x = 0, y = 1, text = 'Increased numeracy')
       ggplotly(fig, tooltip = 'text') |>
         layout(annotations = c(anno, anno_base), margin = marj)
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms,
-        input$baseline_levels)
+        input$delivery_model, input$duration_days, input$region, input$year_term,
+        input$baseline_level)
 
     output$plot_trend_beginner_diff = renderPlotly({
       req(data_trend)
@@ -296,13 +280,13 @@ tarlnum_server = function(id, data_raw) {
         data_trend()$wide, x_col = 'year_term_num', y_col = 'pct_beginner_diff',
         text_col = 'tt_beginner_diff', fill = get_fills('beginner')[1L],
         shape = 21, sign = -1, size = 2, stroke = 0)
-      anno = list(x = 0, y = 1, text = 'Decrease in innumeracy')
+      anno = list(x = 0, y = 1, text = 'Decreased innumeracy')
       ggplotly(fig, tooltip = 'text') |>
         layout(annotations = c(anno, anno_base), margin = marj)
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms,
-        input$baseline_levels)
+        input$delivery_model, input$duration_days, input$region, input$year_term,
+        input$baseline_level)
 
     output$plot_trend_improved = renderPlotly({
       req(data_trend)
@@ -310,13 +294,13 @@ tarlnum_server = function(id, data_raw) {
         data_trend()$wide, x_col = 'year_term_num', y_col = 'pct_improved',
         text_col = 'tt_improved', fill = get_fills('improved'), shape = 21,
         size = 2, stroke = 0)
-      anno = list(x = 0, y = 1, text = 'Improved at least one level')
+      anno = list(x = 0, y = 1, text = 'Improved a level (or more)')
       ggplotly(fig, tooltip = 'text') |>
         layout(annotations = c(anno, anno_base), margin = marj)
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms,
-        input$baseline_levels)
+        input$delivery_model, input$duration_days, input$region, input$year_term,
+        input$baseline_level)
 
     output$plot_trend_total = renderPlotly({
       req(data_trend)
@@ -329,29 +313,31 @@ tarlnum_server = function(id, data_raw) {
         layout(annotations = c(anno, anno_base), margin = marj)
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms,
-        input$baseline_levels)
+        input$delivery_model, input$duration_days, input$region, input$year_term,
+        input$baseline_level)
 
     output$plot_detailed_prepost = renderPlotly({
       req(data_filt)
       fig = get_barplot_detailed(
-        data_filt()$long, col = 'student_level_fct', fills = get_fills('full'))
+        data_filt()$tarlnum_long, col = 'student_level_str',
+        fills = get_fills('full'))
       anno = list(x = 0, y = 1, text = 'All levels')
       lej = list(tracegroupgap = 0)
       ggplotly(fig, tooltip = 'text') |>
         layout(annotations = c(anno, anno_base), legend = lej)
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms,
-        input$baseline_levels)
+        input$delivery_model, input$duration_days, input$region, input$year_term,
+        input$baseline_level)
 
     output$plot_detailed_alluvial = renderPlotly({
       req(data_filt)
       flows = dcast(
-        data_filt()$long, student_id ~ timepoint,
-        value.var = 'student_level_fct')
+        data_filt()$tarlnum_long, student_id ~ timepoint,
+        value.var = 'student_level_str')
 
-      levs = sort(unique(data_filt()$long$student_level_fct)) # keep as factor
+      # keep as factor
+      levs = sort(unique(data_filt()$tarlnum_long$student_level_str))
       flows = merge(
         CJ(Baseline = levs, Endline = levs),
         flows[, .N, keyby = .(Baseline, Endline)],
@@ -375,24 +361,34 @@ tarlnum_server = function(id, data_raw) {
           text = 'Progress from Baseline to Endline', x = 0.15))
     }) |>
       bindCache(
-        input$delivery_types, input$durations, input$regions, input$year_terms,
-        input$baseline_levels)
+        input$delivery_model, input$duration_days, input$region, input$year_term,
+        input$baseline_level)
+
+    output$ui_school = renderUI({
+      ns = session$ns
+      checkboxInput(
+        inputId = ns('school_kpis_by_timepoint'),
+        label = 'Show key outcomes for baseline and endline',
+        value = FALSE,
+        width = '100%')
+    })
 
     output$table_by_school = renderDataTable({
-      req(data_filt)
-      by_cols = c('delivery_type', 'region', 'school_name', 'school_id')
+      req(data_filt, !is.null(input$school_kpis_by_timepoint))
+      by_cols = c('delivery_model', 'region', 'school_name', 'school_id')
 
-      metrics = data_filt()$long[, .(
-        n_total = .N,
+      metrics = data_filt()$tarlnum_long[, .(
         pct_ace = 100 * sum(level_ace, na.rm = TRUE) / .N,
         pct_beginner = 100 * sum(level_beginner, na.rm = TRUE) / .N),
         keyby = c(by_cols, 'timepoint')]
 
       metrics = dcast(
         metrics, formula('... ~ timepoint'),
-        value.var = c('n_total', 'pct_ace', 'pct_beginner'))
+        value.var = c('pct_ace', 'pct_beginner'))
 
-      metrics_wide = get_data_wide(data_filt()$long, by_cols)[, .(
+      metrics_wide = data_filt()$tarlnum_wide[, .(
+        n_students = .N,
+        n_terms = uniqueN(year_term),
         pct_improved = 100 * sum(level_improved, na.rm = TRUE) / .N),
         keyby = by_cols]
       metrics = merge(metrics, metrics_wide, by = by_cols)
@@ -400,23 +396,31 @@ tarlnum_server = function(id, data_raw) {
       metrics[, pct_ace_diff := pct_ace_Endline - pct_ace_Baseline]
       metrics[
         , pct_beginner_diff := pct_beginner_Baseline - pct_beginner_Endline]
-      metrics[, n_total_Endline := NULL]
       setorder(metrics, -pct_ace_diff, pct_beginner_diff, -pct_improved)
 
       cols_old = c(
-        'delivery_type', 'region', 'school_name',
+        'delivery_model', 'region', 'school_name', 'school_id',
         'pct_ace_diff', 'pct_ace_Baseline', 'pct_ace_Endline',
         'pct_beginner_diff', 'pct_beginner_Baseline', 'pct_beginner_Endline',
-        'pct_improved', 'n_total_Baseline', 'school_id')
+        'pct_improved', 'n_students', 'n_terms')
       cols_new = c(
-        'Delivery model', 'Region', 'School name',
+        'Delivery model', 'Region', 'School name', 'School ID',
         'Increased numeracy (%-pts)', 'Baseline numeracy (%)',
         'Endline numeracy (%)',
         'Decreased innumeracy (%-pts)', 'Baseline innumeracy (%)',
         'Endline innumeracy (%)',
-        'Improved a level (%)', 'Number of students', 'School ID')
+        'Improved a level (%)', 'Number of students', 'Number of terms')
       setnames(metrics, cols_old, cols_new)
       setcolorder(metrics, cols_new)
+      cols_num = cols_new[5:11]
+
+      if (isFALSE(input$school_kpis_by_timepoint)) {
+        cols_drop = c(
+          'Baseline numeracy (%)', 'Endline numeracy (%)',
+          'Baseline innumeracy (%)', 'Endline innumeracy (%)')
+        metrics[, (cols_drop) := NULL]
+        cols_num = setdiff(cols_num, cols_drop)
+      }
 
       opts = list(pageLength = 25L)
       DT::datatable(metrics, rownames = FALSE, options = opts) |>
@@ -435,39 +439,42 @@ tarlnum_server = function(id, data_raw) {
           background = styleColorBar(c(0, 100), get_fills('improved')),
           backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat',
           backgroundPosition = 'center') |>
-        formatRound(columns = cols_new[4:10], digits = 1L) |>
+        formatRound(columns = cols_num, digits = 1L) |>
         formatStyle(colnames(metrics), lineHeight = '80%')
     })
 
     filt_compare = reactive({
       req(filt)
-      unique(filt()[, !'delivery_type'])
+      unique(filt()[, !'delivery_model'])
     })
 
     data_compare = reactive({
-      req(data_proc, filt_compare, input$baseline_levels)
+      req(data_proc, filt_compare, input$baseline_level)
 
       filt_by_student = data.table(
-        timepoint = 'Baseline', student_level_fct = input$baseline_levels)
+        timepoint = 'Baseline', student_level_str = input$baseline_level)
 
-      long = get_data_filtered(
-        data_proc(), filt_compare(), filt_by_student)$data_long
-      set(long, j = 'treatment_id', value = long$delivery_type)
-      set(long, j = 'treatment_wrap', value = long$delivery_type)
+      data_compare = get_data_filtered(
+        data_proc()[c('tarlnum_long', 'tarlnum_wide')],
+        filt_compare(), filt_by_student)
 
-      by_cols = c('treatment_id', 'treatment_wrap', 'duration')
-      wide = get_data_wide(long, by_cols)
-      list(long = long, wide = wide)
-    }) |>
-      bindCache(
-        input$durations, input$regions, input$year_terms, input$baseline_levels)
+      data_compare$tarlnum_wide = data_compare$tarlnum_wide[
+        student_id %in% data_compare$tarlnum_long$student_id]
+
+      data_compare$tarlnum_long[, treatment_id := delivery_model]
+      data_compare$tarlnum_long[, treatment_wrap := delivery_model]
+      data_compare$tarlnum_wide[, treatment_id := delivery_model]
+      data_compare$tarlnum_wide[, treatment_wrap := delivery_model]
+      data_compare
+    })
 
     output$plot_compare = renderPlotly({
       req(data_compare)
 
       yaxis = list(title = 'Share of students (%)', titlefont = list(size = 20))
-      by_cols = c('treatment_id', 'treatment_wrap')
-      metrics = get_metrics(data_compare()$long, data_compare()$wide, by_cols)
+      metrics = get_metrics(
+        data_compare()$tarlnum_long, data_compare()$tarlnum_wide,
+        c('treatment_id', 'treatment_wrap'))
 
       metrics$wide[, tt_improvement := glue(
         'Mean: {tt_mean}\nSD: {tt_sd}',
@@ -475,20 +482,20 @@ tarlnum_server = function(id, data_raw) {
         tt_sd = format(sd_improvement_per_week, digits = 2L, nsmall = 2L))]
 
       fig = get_barplot_summary(
-        data_compare()$long, col = 'level_ace', fills = get_fills('ace'),
-        by_treatment = TRUE)
+        data_compare()$tarlnum_long, col = 'level_ace',
+        fills = get_fills('ace'), by_treatment = TRUE)
       fig_ace = ggplotly(fig, tooltip = 'text') |>
         layout(yaxis = yaxis)
 
       fig = get_barplot_summary(
-        data_compare()$long, col = 'level_beginner',
+        data_compare()$tarlnum_long, col = 'level_beginner',
         fills = get_fills('beginner'), by_treatment = TRUE) +
         theme(axis.title.y = element_blank())
       fig_beginner = ggplotly(fig, tooltip = 'text') |>
         layout(yaxis = yaxis)
 
       fig = get_barplot_summary(
-        data_compare()$wide, col = 'level_improved',
+        data_compare()$tarlnum_wide, col = 'level_improved',
         fills = get_fills('improved'), by_treatment = TRUE, y_lims = c(0, 100))
       fig_improved = ggplotly(fig, tooltip = 'text') |>
         layout(yaxis = yaxis)
@@ -510,7 +517,7 @@ tarlnum_server = function(id, data_raw) {
       annos = list(
         list(x = 0, y = 1.05, text = 'Numeracy: division level'),
         list(x = 0.56, y = 1.05, text = 'Innumeracy: beginner level'),
-        list(x = 0, y = 0.46, text = 'Improved at least one level'),
+        list(x = 0, y = 0.46, text = 'Improved a level (or more)'),
         list(x = 0.56, y = 0.46, text = 'Progress toward numeracy'))
       annos = lapply(annos, \(z) c(z, anno_base))
 
@@ -520,6 +527,6 @@ tarlnum_server = function(id, data_raw) {
         layout(annotations = annos, margin = list(t = 50))
     }) |>
       bindCache(
-        input$durations, input$regions, input$year_terms, input$baseline_levels)
+        input$duration_days, input$region, input$year_term, input$baseline_level)
   })
 }
