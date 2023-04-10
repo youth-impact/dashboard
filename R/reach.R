@@ -26,19 +26,11 @@ reach_server = function(id, data_proc) {
       students = data_proc()$reach_students
       students_tarl = students[program == 'TaRL Numeracy']
 
-      cols = c(
-        'year_term', 'program', 'delivery_model', 'region', 'student_gender')
+      cols = c('program', 'delivery_model', 'region', 'student_gender')
       choices = lapply(cols, \(col) sort(unique(students[[col]])))
       names(choices) = cols
 
       tagList(
-        pickerInput(
-          inputId = ns('year_term'),
-          choices = choices$year_term,
-          selected = choices$year_term,
-          multiple = TRUE,
-          options = get_picker_options('Years and terms')
-        ),
         pickerInput(
           inputId = ns('program'),
           choices = choices$program,
@@ -77,10 +69,9 @@ reach_server = function(id, data_proc) {
     })
 
     data_filt = reactive({
-      req(data_proc, input$year_term, input$program, input$delivery_model,
+      req(data_proc, input$program, input$delivery_model,
           input$region, input$student_gender)
       filt = CJ(
-        year_term = input$year_term,
         program = input$program,
         delivery_model = input$delivery_model,
         region = input$region,
@@ -100,6 +91,7 @@ reach_server = function(id, data_proc) {
         n_facilitators = uniqueN(.SD, by = c('program', 'facilitator_id')),
         n_schools = uniqueN(.SD, by = c('program', 'school_id', 'school_name'))),
         keyby = by_col]
+      setorderv(counts, by_col, -1L)
 
       old = c(by_col, 'n_students', 'n_facilitators', 'n_schools')
       n_cols = c('Students', 'Facilitators', 'Schools')

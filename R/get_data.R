@@ -22,9 +22,6 @@ get_data_raw = function(project, dataset) {
     qs::qsave(file_metadata, file_metadata_path)
   }
 
-  for (i in seq_len(length(data_raw))) {
-    data_raw[[i]][, c('_load_uuid', '_load_emitted_at') := NULL]
-  }
   data_raw # list of data.tables
 }
 
@@ -38,7 +35,7 @@ get_data_proc_connected = function(data_raw) {
   arms[, treatment_name := forcats::fct_reorder(
     treatment_name, treatment_id, .fun = \(x) x[1L])]
 
-  assessments = data_raw$connected_assessments |>
+  assessments = unique(data_raw$connected_assessments) |>
     merge(data_raw$connected_students, by = 'student_id') |>
     merge(arms[, !'treatment_description'], by = 'arm_id')
 
@@ -79,7 +76,7 @@ get_data_proc_connected = function(data_raw) {
 }
 
 get_data_proc_tarlnum = function(data_raw) {
-  assessments = data_raw$tarlnum_assessments |>
+  assessments = unique(data_raw$tarlnum_assessments) |>
     merge(data_raw$tarlnum_students, by = 'student_id') |>
     merge(data_raw$tarlnum_schools, by = c('school_id', 'school_name')) |>
     merge(data_raw$tarlnum_implementations, by = 'impl_id')

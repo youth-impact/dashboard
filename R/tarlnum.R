@@ -72,7 +72,7 @@ tarlnum_ui = function(id) {
         tabPanel(
           title = 'Outcomes by Delivery Model',
           br(),
-          p(em('Based on filtering options other than delivery model.')),
+          p(em('Based on display options other than delivery model.')),
           plotlyOutput(ns('plot_compare'), height = glue('{ht * 2}px'))
         )
       ),
