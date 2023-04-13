@@ -1,8 +1,8 @@
 # create the ui object for the shiny app
-
 ui = navbarPage(
   theme = bslib::bs_theme(bootswatch = 'cosmo'),
   title = 'Youth Impact',
+  selected = 'ConnectEd', # temporary
 
   tabPanel(
     title = 'Reach',
@@ -33,7 +33,7 @@ ui = navbarPage(
 # create the server object for the shiny app
 server = function(input, output, session) {
   # load data
-  data_proc = get_data_server('get_data', params$project, params$dataset)
+  data_proc = get_data_server('get_data', params$folder_url)
 
   # Reach
   reach_server('reach', data_proc)

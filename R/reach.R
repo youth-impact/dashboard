@@ -24,7 +24,6 @@ reach_server = function(id, data_proc) {
       req(data_proc)
       ns = session$ns
       students = data_proc()$reach_students
-      students_tarl = students[program == 'TaRL Numeracy']
 
       cols = c('program', 'delivery_model', 'region', 'student_gender')
       choices = lapply(cols, \(col) sort(unique(students[[col]])))
@@ -68,7 +67,7 @@ reach_server = function(id, data_proc) {
       )
     })
 
-    data_filt = reactive({
+    students_filt = reactive({
       req(data_proc, input$program, input$delivery_model,
           input$region, input$student_gender)
       filt = CJ(
@@ -80,15 +79,16 @@ reach_server = function(id, data_proc) {
     })
 
     output$table_counts = renderDataTable({
-      req(data_filt, !is.null(input$agg_by_year))
-      by_col = if (isTRUE(input$agg_by_year)) 'year' else 'year_term'
+      req(students_filt, !is.null(input$agg_by_year))
+      by_col = if (isTRUE(input$agg_by_year)) 'year' else 'year_term_str'
       by_col_new = if (isTRUE(input$agg_by_year)) 'Year' else 'Year Term'
 
       # TODO: filtering will have to come later when calculating cumulative
 
-      counts = data_filt()[, .(
+      counts = students_filt()[, .(
         n_students = .N,
-        n_facilitators = uniqueN(.SD, by = c('program', 'facilitator_id')),
+        n_facilitators = uniqueN(
+          .SD, by = c('program', 'facilitator_id_impl', 'facilitator_name_impl')),
         n_schools = uniqueN(.SD, by = c('program', 'school_id', 'school_name'))),
         keyby = by_col]
       setorderv(counts, by_col, -1L)

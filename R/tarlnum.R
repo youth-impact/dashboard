@@ -87,9 +87,9 @@ tarlnum_server = function(id, data_proc) {
     output$ui_input = renderUI({
       req(data_proc)
       ns = session$ns
-      long = data_proc()$tarlnum_long
+      long = data_proc()$tarlnum_assessments_nomissing
 
-      cols = c('delivery_model', 'duration_days', 'region', 'year_term')
+      cols = c('delivery_model', 'duration_days', 'region', 'year_term_str')
       choices = lapply(cols, \(col) sort(unique(long[[col]])))
       names(choices) = cols
       choices$baseline_level = levels(long$student_level_str)
@@ -117,9 +117,9 @@ tarlnum_server = function(id, data_proc) {
           options = get_picker_options('Regions')
         ),
         pickerInput(
-          inputId = ns('year_term'),
-          choices = choices$year_term,
-          selected = choices$year_term,
+          inputId = ns('year_term_str'),
+          choices = choices$year_term_str,
+          selected = choices$year_term_str,
           multiple = TRUE,
           options = get_picker_options('Years and terms')
         ),
@@ -135,29 +135,29 @@ tarlnum_server = function(id, data_proc) {
 
     filt = reactive({
       req(input$delivery_model, input$duration_days,
-          input$region, input$year_term)
+          input$region, input$year_term_str)
       CJ(
         delivery_model = input$delivery_model,
         duration_days = as.integer(input$duration_days),
         region = input$region,
-        year_term = input$year_term)
+        year_term_str = input$year_term_str)
     })
 
     data_filt = reactive({
       req(data_proc, filt, input$baseline_level)
+      tbls = c('tarlnum_assessments_nomissing', 'tarlnum_students_nomissing')
       filt_by_student = data.table(
         timepoint = 'Baseline', student_level_str = input$baseline_level)
-      data_filt = get_data_filtered(
-        data_proc()[c('tarlnum_long', 'tarlnum_wide')], filt(),
-        filt_by_student)
-      data_filt$tarlnum_wide = data_filt$tarlnum_wide[
-        student_id %in% data_filt$tarlnum_long$student_id]
+      data_filt = get_data_filtered(data_proc()[tbls], filt(), filt_by_student)
+      data_filt$tarlnum_students_nomissing =
+        data_filt$tarlnum_students_nomissing[
+          student_id %in% data_filt$tarlnum_assessments_nomissing$student_id]
       data_filt
     })
 
     output$ui_counts = renderUI({
       req(data_filt)
-      counts = data_filt()$tarlnum_long[, .(
+      counts = data_filt()$tarlnum_assessments_nomissing[, .(
         n_students = uniqueN(student_id)), keyby = delivery_model]
 
       n_total = scales::label_comma()(sum(counts$n_students))
@@ -174,17 +174,18 @@ tarlnum_server = function(id, data_proc) {
       req(data_filt)
 
       fig = get_barplot_summary(
-        data_filt()$tarlnum_long, col = 'level_ace', fills = get_fills('ace'))
+        data_filt()$tarlnum_assessments_nomissing, col = 'level_ace',
+        fills = get_fills('ace'))
       fig_ace = ggplotly(fig, tooltip = 'text')
 
       fig = get_barplot_summary(
-        data_filt()$tarlnum_long, col = 'level_beginner',
+        data_filt()$tarlnum_assessments_nomissing, col = 'level_beginner',
         fills = get_fills('beginner')) +
         theme(axis.title.y = element_blank())
       fig_beginner = ggplotly(fig, tooltip = 'text')
 
       fig = get_barplot_summary(
-        data_filt()$tarlnum_wide, col = 'level_improved',
+        data_filt()$tarlnum_students_nomissing, col = 'level_improved',
         fills = get_fills('improved'), y_lims = c(0, 100)) +
         theme(axis.title.y = element_blank())
       fig_improved = ggplotly(fig, tooltip = 'text')
@@ -201,28 +202,30 @@ tarlnum_server = function(id, data_proc) {
         layout(annotations = annos, margin = list(t = 55))
     }) |>
       bindCache(
-        input$delivery_model, input$duration_days, input$region, input$year_term,
-        input$baseline_level)
+        input$delivery_model, input$duration_days, input$region,
+        input$year_term_str, input$baseline_level)
 
     data_trend = reactive({
       req(data_filt)
 
       metrics = get_metrics(
-        data_filt()$tarlnum_long, data_filt()$tarlnum_wide,
-        c('year_term_num', 'year_term'))
+        data_filt()$tarlnum_assessments_nomissing,
+        data_filt()$tarlnum_students_nomissing,
+        c('year_term_num', 'year_term_str'))
 
-      metrics$long[, tt_ace := get_tooltips(n_ace, pct_ace, pre = year_term)]
+      metrics$long[, tt_ace := get_tooltips(
+        n_ace, pct_ace, pre = year_term_str)]
       metrics$long[, tt_beginner := get_tooltips(
-        n_beginner, pct_beginner, pre = year_term)]
+        n_beginner, pct_beginner, pre = year_term_str)]
 
-      metrics$wide[, tt_total := get_tooltips(n_total, pre = year_term)]
+      metrics$wide[, tt_total := get_tooltips(n_total, pre = year_term_str)]
       metrics$wide[, tt_improved := get_tooltips(
-        n_improved, pct_improved, pre = year_term)]
+        n_improved, pct_improved, pre = year_term_str)]
 
       metrics$wide[, tt_ace_diff := get_tooltips(
-        n_ace_diff, pct_ace_diff, pre = year_term)]
+        n_ace_diff, pct_ace_diff, pre = year_term_str)]
       metrics$wide[, tt_beginner_diff := get_tooltips(
-        n_beginner_diff, pct_beginner_diff, pre = year_term)]
+        n_beginner_diff, pct_beginner_diff, pre = year_term_str)]
 
       metrics
     })
@@ -243,8 +246,8 @@ tarlnum_server = function(id, data_proc) {
           annotations = c(anno, anno_base), margin = marj, legend = lej)
     }) |>
       bindCache(
-        input$delivery_model, input$duration_days, input$region, input$year_term,
-        input$baseline_level)
+        input$delivery_model, input$duration_days, input$region,
+        input$year_term_str, input$baseline_level)
 
     output$plot_trend_beginner = renderPlotly({
       req(data_trend)
@@ -257,8 +260,8 @@ tarlnum_server = function(id, data_proc) {
         layout(annotations = c(anno, anno_base), margin = marj, legend = lej)
     }) |>
       bindCache(
-        input$delivery_model, input$duration_days, input$region, input$year_term,
-        input$baseline_level)
+        input$delivery_model, input$duration_days, input$region,
+        input$year_term_str, input$baseline_level)
 
     output$plot_trend_ace_diff = renderPlotly({
       req(data_trend)
@@ -271,8 +274,8 @@ tarlnum_server = function(id, data_proc) {
         layout(annotations = c(anno, anno_base), margin = marj)
     }) |>
       bindCache(
-        input$delivery_model, input$duration_days, input$region, input$year_term,
-        input$baseline_level)
+        input$delivery_model, input$duration_days, input$region,
+        input$year_term_str, input$baseline_level)
 
     output$plot_trend_beginner_diff = renderPlotly({
       req(data_trend)
@@ -285,8 +288,8 @@ tarlnum_server = function(id, data_proc) {
         layout(annotations = c(anno, anno_base), margin = marj)
     }) |>
       bindCache(
-        input$delivery_model, input$duration_days, input$region, input$year_term,
-        input$baseline_level)
+        input$delivery_model, input$duration_days, input$region,
+        input$year_term_str, input$baseline_level)
 
     output$plot_trend_improved = renderPlotly({
       req(data_trend)
@@ -299,8 +302,8 @@ tarlnum_server = function(id, data_proc) {
         layout(annotations = c(anno, anno_base), margin = marj)
     }) |>
       bindCache(
-        input$delivery_model, input$duration_days, input$region, input$year_term,
-        input$baseline_level)
+        input$delivery_model, input$duration_days, input$region,
+        input$year_term_str, input$baseline_level)
 
     output$plot_trend_total = renderPlotly({
       req(data_trend)
@@ -313,13 +316,13 @@ tarlnum_server = function(id, data_proc) {
         layout(annotations = c(anno, anno_base), margin = marj)
     }) |>
       bindCache(
-        input$delivery_model, input$duration_days, input$region, input$year_term,
-        input$baseline_level)
+        input$delivery_model, input$duration_days, input$region,
+        input$year_term_str, input$baseline_level)
 
     output$plot_detailed_prepost = renderPlotly({
       req(data_filt)
       fig = get_barplot_detailed(
-        data_filt()$tarlnum_long, col = 'student_level_str',
+        data_filt()$tarlnum_assessments_nomissing, col = 'student_level_str',
         fills = get_fills('full'))
       anno = list(x = 0, y = 1, text = 'All levels')
       lej = list(tracegroupgap = 0)
@@ -327,17 +330,18 @@ tarlnum_server = function(id, data_proc) {
         layout(annotations = c(anno, anno_base), legend = lej)
     }) |>
       bindCache(
-        input$delivery_model, input$duration_days, input$region, input$year_term,
-        input$baseline_level)
+        input$delivery_model, input$duration_days, input$region,
+        input$year_term_str, input$baseline_level)
 
     output$plot_detailed_alluvial = renderPlotly({
       req(data_filt)
       flows = dcast(
-        data_filt()$tarlnum_long, student_id ~ timepoint,
+        data_filt()$tarlnum_assessments_nomissing, student_id ~ timepoint,
         value.var = 'student_level_str')
 
       # keep as factor
-      levs = sort(unique(data_filt()$tarlnum_long$student_level_str))
+      levs = sort(unique(
+        data_filt()$tarlnum_assessments_nomissing$student_level_str))
       flows = merge(
         CJ(Baseline = levs, Endline = levs),
         flows[, .N, keyby = .(Baseline, Endline)],
@@ -361,8 +365,8 @@ tarlnum_server = function(id, data_proc) {
           text = 'Progress from Baseline to Endline', x = 0.15))
     }) |>
       bindCache(
-        input$delivery_model, input$duration_days, input$region, input$year_term,
-        input$baseline_level)
+        input$delivery_model, input$duration_days, input$region,
+        input$year_term_str, input$baseline_level)
 
     output$ui_school = renderUI({
       ns = session$ns
@@ -377,7 +381,7 @@ tarlnum_server = function(id, data_proc) {
       req(data_filt, !is.null(input$school_kpis_by_timepoint))
       by_cols = c('delivery_model', 'region', 'school_name', 'school_id')
 
-      metrics = data_filt()$tarlnum_long[, .(
+      metrics = data_filt()$tarlnum_assessments_nomissing[, .(
         pct_ace = 100 * sum(level_ace, na.rm = TRUE) / .N,
         pct_beginner = 100 * sum(level_beginner, na.rm = TRUE) / .N),
         keyby = c(by_cols, 'timepoint')]
@@ -386,9 +390,9 @@ tarlnum_server = function(id, data_proc) {
         metrics, formula('... ~ timepoint'),
         value.var = c('pct_ace', 'pct_beginner'))
 
-      metrics_wide = data_filt()$tarlnum_wide[, .(
+      metrics_wide = data_filt()$tarlnum_students_nomissing[, .(
         n_students = .N,
-        n_terms = uniqueN(year_term),
+        n_terms = uniqueN(year_term_str),
         pct_improved = 100 * sum(level_improved, na.rm = TRUE) / .N),
         keyby = by_cols]
       metrics = merge(metrics, metrics_wide, by = by_cols)
@@ -454,17 +458,22 @@ tarlnum_server = function(id, data_proc) {
       filt_by_student = data.table(
         timepoint = 'Baseline', student_level_str = input$baseline_level)
 
+      tbls = c('tarlnum_assessments_nomissing', 'tarlnum_students_nomissing')
       data_compare = get_data_filtered(
-        data_proc()[c('tarlnum_long', 'tarlnum_wide')],
-        filt_compare(), filt_by_student)
+        data_proc()[tbls], filt_compare(), filt_by_student)
 
-      data_compare$tarlnum_wide = data_compare$tarlnum_wide[
-        student_id %in% data_compare$tarlnum_long$student_id]
+      data_compare$tarlnum_students_nomissing =
+        data_compare$tarlnum_students_nomissing[
+        student_id %in% data_compare$tarlnum_assessments_nomissing$student_id]
 
-      data_compare$tarlnum_long[, treatment_id := delivery_model]
-      data_compare$tarlnum_long[, treatment_wrap := delivery_model]
-      data_compare$tarlnum_wide[, treatment_id := delivery_model]
-      data_compare$tarlnum_wide[, treatment_wrap := delivery_model]
+      data_compare$tarlnum_assessments_nomissing[
+        , treatment_id := delivery_model]
+      data_compare$tarlnum_assessments_nomissing[
+        , treatment_wrap := delivery_model]
+      data_compare$tarlnum_students_nomissing[
+        , treatment_id := delivery_model]
+      data_compare$tarlnum_students_nomissing[
+        , treatment_wrap := delivery_model]
       data_compare
     })
 
@@ -473,29 +482,30 @@ tarlnum_server = function(id, data_proc) {
 
       yaxis = list(title = 'Share of students (%)', titlefont = list(size = 20))
       metrics = get_metrics(
-        data_compare()$tarlnum_long, data_compare()$tarlnum_wide,
+        data_compare()$tarlnum_assessments_nomissing,
+        data_compare()$tarlnum_students_nomissing,
         c('treatment_id', 'treatment_wrap'))
 
-      metrics$wide[, tt_improvement := glue(
+      metrics$wide[, tt_progress := glue(
         'Mean: {tt_mean}\nSD: {tt_sd}',
-        tt_mean = format(mean_improvement_per_week, digits = 2L, nsmall = 2L),
-        tt_sd = format(sd_improvement_per_week, digits = 2L, nsmall = 2L))]
+        tt_mean = format(mean_progress_per_week, digits = 2L, nsmall = 2L),
+        tt_sd = format(sd_progress_per_week, digits = 2L, nsmall = 2L))]
 
       fig = get_barplot_summary(
-        data_compare()$tarlnum_long, col = 'level_ace',
+        data_compare()$tarlnum_assessments_nomissing, col = 'level_ace',
         fills = get_fills('ace'), by_treatment = TRUE)
       fig_ace = ggplotly(fig, tooltip = 'text') |>
         layout(yaxis = yaxis)
 
       fig = get_barplot_summary(
-        data_compare()$tarlnum_long, col = 'level_beginner',
+        data_compare()$tarlnum_assessments_nomissing, col = 'level_beginner',
         fills = get_fills('beginner'), by_treatment = TRUE) +
         theme(axis.title.y = element_blank())
       fig_beginner = ggplotly(fig, tooltip = 'text') |>
         layout(yaxis = yaxis)
 
       fig = get_barplot_summary(
-        data_compare()$tarlnum_wide, col = 'level_improved',
+        data_compare()$tarlnum_students_nomissing, col = 'level_improved',
         fills = get_fills('improved'), by_treatment = TRUE, y_lims = c(0, 100))
       fig_improved = ggplotly(fig, tooltip = 'text') |>
         layout(yaxis = yaxis)
@@ -503,10 +513,10 @@ tarlnum_server = function(id, data_proc) {
       fig = ggplot(metrics$wide) +
         facet_wrap(vars(treatment_id), nrow = 1L) +
         geom_pointrange(
-          aes(x = timepoint, y = mean_improvement_per_week,
-              ymin = mean_improvement_per_week - sd_improvement_per_week,
-              ymax = mean_improvement_per_week + sd_improvement_per_week,
-              text = tt_improvement),
+          aes(x = timepoint, y = mean_progress_per_week,
+              ymin = mean_progress_per_week - sd_progress_per_week,
+              ymax = mean_progress_per_week + sd_progress_per_week,
+              text = tt_progress),
           size = 2, linewidth = 3) +
         labs(y = 'Number of levels per week') +
         theme(axis.title.x = element_blank())
@@ -527,6 +537,7 @@ tarlnum_server = function(id, data_proc) {
         layout(annotations = annos, margin = list(t = 50))
     }) |>
       bindCache(
-        input$duration_days, input$region, input$year_term, input$baseline_level)
+        input$duration_days, input$region, input$year_term_str,
+        input$baseline_level)
   })
 }

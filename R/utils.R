@@ -2,8 +2,10 @@ library('checkmate')
 library('DBI')
 library('rlang') # load before data.table to avoid masking :=
 library('data.table')
+library('forcats')
 library('ggplot2')
 library('glue')
+library('googledrive')
 library('plotly')
 library('shiny')
 library('shinyWidgets')
@@ -37,7 +39,7 @@ token_path = if (Sys.getenv('GOOGLE_TOKEN') == '') {
 } else {
   Sys.getenv('GOOGLE_TOKEN')
 }
-bigrquery::bq_auth(path = token_path)
+drive_auth(path = token_path)
 
 ########################################
 
@@ -87,7 +89,7 @@ get_round_text = function(data_filt) {
     strong('Conclusion: '), rounds_now$conclusion)
 
   data_now = merge(
-    data_filt$connected_wide[, .N, keyby = arm_id],
+    data_filt$connected_students_nomissing[, .N, keyby = arm_id],
     data_filt$connected_arms, by = 'arm_id')
   n_students = sum(data_now$N)
 
@@ -100,8 +102,7 @@ get_round_text = function(data_filt) {
 
   round_text = tagList(
     overview_text, h5('Treatments'), unlist(treatment_text, recursive = FALSE),
-    em(glue('{n_students} students in total ',
-            '(ascertained at baseline and endline).')), h5('Results'))
+    em(glue('{n_students} students in total.')), h5('Results'))
 }
 
 ########################################
@@ -338,14 +339,14 @@ get_metrics = function(data_long, data_wide, by_cols, time_col = 'timepoint') {
   days_per_week = 5 # assumes duration_days is a column in data_wide
 
   a3 = data_wide[, .(
-    mean_improvement = mean(student_level_diff, na.rm = TRUE),
-    sd_improvement = sd(student_level_diff, na.rm = TRUE),
-    mean_improvement_per_week =
-      mean(student_level_diff / duration_days, na.rm = TRUE) * days_per_week,
-    sd_improvement_per_week =
-      sd(student_level_diff / duration_days, na.rm = TRUE) * days_per_week,
-    n_improved = sum(student_level_diff > 0, na.rm = TRUE),
-    pct_improved = 100 * sum(student_level_diff > 0, na.rm = TRUE) / .N),
+    mean_progress = mean(level_progress, na.rm = TRUE),
+    sd_progress = sd(level_progress, na.rm = TRUE),
+    mean_progress_per_week =
+      mean(level_progress / duration_days, na.rm = TRUE) * days_per_week,
+    sd_progress_per_week =
+      sd(level_progress / duration_days, na.rm = TRUE) * days_per_week,
+    n_improved = sum(level_progress > 0, na.rm = TRUE),
+    pct_improved = 100 * sum(level_progress > 0, na.rm = TRUE) / .N),
     keyby = c(by_cols, time_col)]
 
   a2 = merge(a2, a3, by = by_cols)

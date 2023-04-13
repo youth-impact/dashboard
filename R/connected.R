@@ -46,7 +46,7 @@ connected_server = function(id, data_proc) {
       req(data_proc)
       ns = session$ns
       choices = data_proc()$connected_rounds$round_id
-      names(choices) = data_proc()$connected_rounds$label
+      names(choices) = data_proc()$connected_rounds$round_label
 
       tagList(
         pickerInput(
@@ -57,32 +57,34 @@ connected_server = function(id, data_proc) {
         checkboxInput(
           inputId = ns('by_treatment'),
           label = 'Split selected round\'s results by treatment',
-          value = TRUE)
+          value = TRUE),
+        em('Results based on students assessed at baseline and endline.')
       )
     })
 
     data_pool = reactive({
       req(data_proc)
-      data_pool = get_data_filtered(
-        data_proc()[c('connected_long', 'connected_wide')])
+      tbls = c(
+        'connected_assessments_nomissing', 'connected_students_nomissing')
+      data_pool = get_data_filtered(data_proc()[tbls])
       treatment_now = 'All Rounds,\nAll Treatments'
-      data_pool$connected_long[, treatment_id := 'zzz']
-      data_pool$connected_long[, treatment_wrap := treatment_now]
-      data_pool$connected_wide[, treatment_id := 'zzz']
-      data_pool$connected_wide[, treatment_wrap := treatment_now]
+      for (tbl in tbls) {
+        set(data_pool[[tbl]], j = 'treatment_id', value = 'zzz')
+        set(data_pool[[tbl]], j = 'treatment_wrap', value = treatment_now)
+      }
       data_pool
     })
 
     output$overview_counts = renderUI({
       req(data_proc)
       entity_cols = c(
-        'student_id', 'facilitator_id', 'round_id', 'treatment_id', 'region')
-      entity_vals = data_proc()$connected_wide[
+        # TODO: facilitator_id_impl high missingness
+        'student_id', 'facilitator_id_impl', 'school_id', 'region')
+      entity_vals = data_proc()$connected_students_nomissing[
         , lapply(.SD, \(x) scales::label_comma()(uniqueN(x))),
         .SDcols = entity_cols]
-      entity_vals[, school_id := '77'] # placeholder
 
-      wd = 2
+      wd = 3
       align = 'center'
       sty_n = 'font-size:30px;'
       sty_unit = 'font-size:20px;'
@@ -97,7 +99,7 @@ connected_server = function(id, data_proc) {
         ),
         column(
           width = wd, align = align,
-          strong(entity_vals$facilitator_name, style = sty_n), sp,
+          strong(entity_vals$facilitator_id_impl, style = sty_n), sp,
           icon('person-chalkboard', icls), br(),
           p('Facilitators', style = sty_unit)
         ),
@@ -108,19 +110,14 @@ connected_server = function(id, data_proc) {
         ),
         column(
           width = wd, align = align,
-          strong(entity_vals$region_baseline, style = sty_n), sp,
+          strong(entity_vals$region, style = sty_n), sp,
           icon('map-location', icls), br(), p('Regions', style = sty_unit)
-        ),
-        column(
-          width = wd, align = align,
-          strong(entity_vals$treatment_id, style = sty_n), sp,
-          icon('book', icls), br(), p('Treatments', style = sty_unit)
-        ),
-        column(
-          width = wd, align = align,
-          strong(entity_vals$round_id, style = sty_n), HTML('&nbsp;'),
-          icon('scale-unbalanced', icls), br(), p('Rounds', style = sty_unit)
-        )
+        )#,
+        # column(
+        #   width = wd, align = align,
+        #   strong(entity_vals$round_id, style = sty_n), HTML('&nbsp;'),
+        #   icon('scale-unbalanced', icls), br(), p('Rounds', style = sty_unit)
+        # )
       )
     })
 
@@ -128,18 +125,18 @@ connected_server = function(id, data_proc) {
       req(data_pool)
 
       fig = get_barplot_summary(
-        data_pool()$connected_long, col = 'level_ace',
+        data_pool()$connected_assessments, col = 'level_ace',
         fills = get_fills('ace'))
       fig_ace = ggplotly(fig, tooltip = 'text')
 
       fig = get_barplot_summary(
-        data_pool()$connected_long, col = 'level_beginner',
+        data_pool()$connected_assessments, col = 'level_beginner',
         fills = get_fills('beginner')) +
         theme(axis.title.y = element_blank())
       fig_beginner = ggplotly(fig, tooltip = 'text')
 
       fig = get_barplot_summary(
-        data_pool()$connected_wide, col = 'level_improved',
+        data_pool()$connected_students, col = 'level_improved',
         fills = get_fills('improved'), y_lims = c(0, 100)) +
         theme(axis.title.y = element_blank())
       fig_improved = ggplotly(fig, tooltip = 'text')
@@ -158,19 +155,13 @@ connected_server = function(id, data_proc) {
 
     output$overview_delta_kpis = renderUI({
       req(data_proc)
-      perc = scales::label_percent(scale = 1, accuracy = 1, suffix = ' %')
+      perc = scales::label_number(accuracy = 1)
 
-      metrics = data_proc()$connected_long[, .(
-        pct_ace = 100 * sum(level_ace) / .N,
-        pct_beginner = -100 * sum(level_beginner) / .N),
-        keyby = timepoint]
-      metrics = metrics[
-        , lapply(.SD, \(x) perc(diff(x))),
-        .SDcols = c('pct_ace', 'pct_beginner')]
-
-      pct_improved = data_proc()$connected_wide[
-        , 100 * sum(level_improved) / .N]
-      metrics[, pct_improved := perc(pct_improved)]
+      metrics = data_proc()$connected_students_nomissing[, .(
+        pct_beginner =
+          perc(100 * sum(level_beginner_baseline - level_beginner_endline) / .N),
+        pct_ace = perc(100 * sum(level_ace_endline - level_ace_baseline) / .N),
+        pct_improved = perc(100 * sum(level_improved) / .N))]
 
       sty_n = 'font-size:30px;'
       sty_unit = 'font-size:20px;'
@@ -179,18 +170,18 @@ connected_server = function(id, data_proc) {
       fluidRow(
         column(
           width = 5, align = align, style = 'background-color:#a6cee3;',
-          strong(paste0(metrics$pct_ace, '-pts'), style = sty_n), br(),
-          p('Increased Numeracy', style = sty_unit)
+          p(strong(metrics$pct_ace, style = sty_n),
+            a(' %-points', br(), 'Increased Numeracy', style = sty_unit))
         ),
         column(
           width = 4, align = align, style = 'background-color:#fb9a99;',
-          strong(paste0(metrics$pct_beginner, '-pts'), style = sty_n), br(),
-          p('Decreased Innumeracy', style = sty_unit)
+          p(strong(metrics$pct_beginner, style = sty_n),
+            a(' %-points', br(), 'Decreased Innumeracy', style = sty_unit))
         ),
         column(
           width = 3, align = align, style = 'background-color:#b2df8a;',
-          strong(metrics$pct_improved, style = sty_n), br(),
-          p('Improved a Level', style = sty_unit)
+          p(strong(metrics$pct_improved, style = sty_n),
+            a(' %', br(), 'Improved a Level', style = sty_unit))
         )
       )
     })
@@ -210,8 +201,8 @@ connected_server = function(id, data_proc) {
 
     output$plot_kpis = renderPlotly({
       req(data_filt)
-      long = copy(data_filt()$connected_long)
-      wide = copy(data_filt()$connected_wide)
+      long = copy(data_filt()$connected_assessments_nomissing)
+      wide = copy(data_filt()$connected_students_nomissing)
 
       if (isFALSE(input$by_treatment)) {
         round_name = data_filt()$connected_rounds$round_name
@@ -222,8 +213,8 @@ connected_server = function(id, data_proc) {
         wide[, treatment_wrap := treatment_now]
       }
 
-      long = rbind(long, data_pool()$connected_long)
-      wide = rbind(wide, data_pool()$connected_wide)
+      long = rbind(long, data_pool()$connected_assessments_nomissing)
+      wide = rbind(wide, data_pool()$connected_students_nomissing)
       get_plot_kpis(long, wide)
     }) |>
       bindCache(input$round_id, input$by_treatment)
@@ -232,14 +223,14 @@ connected_server = function(id, data_proc) {
     output$plot_detailed = renderPlotly({
       req(data_filt)
 
-      long = copy(data_filt()$connected_long)
+      long = copy(data_filt()$connected_assessments_nomissing)
       if (isFALSE(input$by_treatment)) {
         round_name = data_filt()$connected_rounds$round_name
-        treatment_now = glue('{round_name},\nEither Treatment')
+        treatment_now = glue('{round_name},\nAny Treatment')
         long[, treatment_id := '0']
         long[, treatment_wrap := treatment_now]
       }
-      long = rbind(long, data_pool()$connected_long)
+      long = rbind(long, data_pool()$connected_assessments_nomissing)
 
       fig = get_barplot_detailed(
         long, col = 'student_level_str', fills = get_fills('full'),
