@@ -387,11 +387,13 @@ get_plot_trends_tarlnum = function(students) {
     pct_ace = 100 * sum(level_ace_endline - level_ace_baseline) / .N,
     n_improved = sum(level_improved),
     pct_improved = 100 * sum(level_improved) / .N),
-    by = year_term_num]
+    by = .(year_term_num, year_term_str)]
 
-  metrics[, tt_beginner := get_tooltips(n_beginner, pct_beginner)]
-  metrics[, tt_ace := get_tooltips(n_ace, pct_ace)]
-  metrics[, tt_improved := get_tooltips(n_improved, pct_improved)]
+  metrics[, tt_beginner := get_tooltips(
+    n_beginner, pct_beginner, pre = year_term_str)]
+  metrics[, tt_ace := get_tooltips(n_ace, pct_ace, pre = year_term_str)]
+  metrics[, tt_improved := get_tooltips(
+    n_improved, pct_improved, pre = year_term_str)]
 
   breaks = sort(unique(round(metrics$year_term_num)))
   marj = list(t = 30)
