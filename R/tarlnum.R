@@ -196,7 +196,7 @@ tarlnum_server = function(id, data_proc) {
     })
 
     output$plot_trends = renderPlotly({
-      req(data_filt)
+      req(data_filt, !is.null(input$by_year))
       get_plot_trends_tarlnum(
         data_filt()$tarlnum_students_nomissing, isTRUE(input$by_year))
     }) |>

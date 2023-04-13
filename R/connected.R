@@ -26,12 +26,16 @@ connected_ui = function(id) {
         ),
         tabPanel(
           title = 'Key Outcomes by Round',
+          uiOutput(ns('round_header_kpis')),
+          uiOutput(ns('round_banner_kpis')),
           uiOutput(ns('round_text_kpis')),
           plotlyOutput(
             ns('plot_kpis'), height = glue('{ht * 3}px'), width = '80%'),
         ),
         tabPanel(
           title = 'Detailed Outcomes by Round',
+          uiOutput(ns('round_header_detailed')),
+          uiOutput(ns('round_banner_detailed')),
           uiOutput(ns('round_text_detailed')),
           plotlyOutput(
             ns('plot_detailed'), height = glue('{ht + 50}px'), width = '95%')
@@ -127,6 +131,15 @@ connected_server = function(id, data_proc) {
       get_plot_trends_connected(
         data_proc()$connected_students_nomissing,
         data_proc()$connected_rounds)
+    })
+
+    output$round_header_kpis = output$round_header_detailed = renderUI({
+      h4(data_filt()$connected_rounds$round_name)
+    })
+
+    output$round_banner_kpis = output$round_banner_detailed = renderUI({
+      req(data_proc)
+      get_overview_banner(data_filt()$connected_students_nomissing)
     })
 
     # narrative text for the selected round

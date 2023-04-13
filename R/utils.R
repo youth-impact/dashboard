@@ -182,8 +182,7 @@ get_round_text = function(data_filt) {
   rounds_now = data_filt$connected_rounds
 
   overview_text = p(
-    h4(rounds_now$round_name),
-    strong('Purpose: '), rounds_now$purpose, br(),
+    br(), strong('Purpose: '), rounds_now$purpose, br(),
     strong('Conclusion: '), rounds_now$conclusion)
 
   data_now = merge(
@@ -192,10 +191,9 @@ get_round_text = function(data_filt) {
   n_students = sum(data_now$N)
 
   treatment_text = lapply(seq_len(nrow(data_now)), \(i) {
-    list(
-      strong(data_now[i]$treatment_name), '(',
-      em(glue('{data_now[i]$N} students'), .noWS = 'outside'),
-      paste('):', data_now[i]$treatment_description), br())
+    list(strong(data_now[i]$treatment_name), '(',
+         em(glue('{data_now[i]$N} students'), .noWS = 'outside'),
+         paste('):', data_now[i]$treatment_description), br())
   })
 
   round_text = tagList(
