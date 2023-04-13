@@ -198,7 +198,7 @@ get_round_text = function(data_filt) {
 
   round_text = tagList(
     overview_text, h5('Treatments'), unlist(treatment_text, recursive = FALSE),
-    em(glue('{n_students} students in total.')), h5('Results'))
+    h5('Results'))
 }
 
 get_tooltips = function(
