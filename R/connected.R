@@ -13,19 +13,22 @@ connected_ui = function(id) {
     mainPanel(
       tabsetPanel(
         tabPanel(
-          title = 'Program Overview',
+          title = 'Overview',
           h4('All Rounds'),
-          wellPanel(
-            uiOutput(ns('overview_counts')),
-            uiOutput(ns('overview_delta_kpis'))
-          ),
+          uiOutput(ns('overview_banner')),
           plotlyOutput(ns('overview_plot_kpis'), height = glue('{ht}px'))
+        ),
+        tabPanel(
+          title = 'Trends',
+          h4('All Rounds'),
+          plotlyOutput(
+            ns('plot_trends'), height = glue('{ht * 2.5}px'), width = '50%')
         ),
         tabPanel(
           title = 'Key Outcomes by Round',
           uiOutput(ns('round_text_kpis')),
           plotlyOutput(
-            ns('plot_kpis'), height = glue('{ht*3}px'), width = '80%'),
+            ns('plot_kpis'), height = glue('{ht * 3}px'), width = '80%'),
         ),
         tabPanel(
           title = 'Detailed Outcomes by Round',
@@ -75,50 +78,9 @@ connected_server = function(id, data_proc) {
       data_pool
     })
 
-    output$overview_counts = renderUI({
+    output$overview_banner = renderUI({
       req(data_proc)
-      entity_cols = c(
-        # TODO: facilitator_id_impl high missingness
-        'student_id', 'facilitator_id_impl', 'school_id', 'region')
-      entity_vals = data_proc()$connected_students_nomissing[
-        , lapply(.SD, \(x) scales::label_comma()(uniqueN(x))),
-        .SDcols = entity_cols]
-
-      wd = 3
-      align = 'center'
-      sty_n = 'font-size:30px;'
-      sty_unit = 'font-size:20px;'
-      icls = 'fa-2x'
-      sp = HTML('&nbsp;')
-
-      fluidRow(
-        column(
-          width = wd, align = align,
-          strong(entity_vals$student_id, style = sty_n), sp,
-          icon('child-reaching', icls), br(), p('Students', style = sty_unit)
-        ),
-        column(
-          width = wd, align = align,
-          strong(entity_vals$facilitator_id_impl, style = sty_n), sp,
-          icon('person-chalkboard', icls), br(),
-          p('Facilitators', style = sty_unit)
-        ),
-        column(
-          width = wd, align = align,
-          strong(entity_vals$school_id, style = sty_n), sp,
-          icon('school', icls), br(), p('Schools', style = sty_unit)
-        ),
-        column(
-          width = wd, align = align,
-          strong(entity_vals$region, style = sty_n), sp,
-          icon('map-location', icls), br(), p('Regions', style = sty_unit)
-        )#,
-        # column(
-        #   width = wd, align = align,
-        #   strong(entity_vals$round_id, style = sty_n), HTML('&nbsp;'),
-        #   icon('scale-unbalanced', icls), br(), p('Rounds', style = sty_unit)
-        # )
-      )
+      get_overview_banner(data_proc()$connected_students_nomissing)
     })
 
     output$overview_plot_kpis = renderPlotly({
@@ -153,44 +115,18 @@ connected_server = function(id, data_proc) {
         layout(annotations = annos, margin = list(t = 55))
     })
 
-    output$overview_delta_kpis = renderUI({
-      req(data_proc)
-      perc = scales::label_number(accuracy = 1)
-
-      metrics = data_proc()$connected_students_nomissing[, .(
-        pct_beginner =
-          perc(100 * sum(level_beginner_baseline - level_beginner_endline) / .N),
-        pct_ace = perc(100 * sum(level_ace_endline - level_ace_baseline) / .N),
-        pct_improved = perc(100 * sum(level_improved) / .N))]
-
-      sty_n = 'font-size:30px;'
-      sty_unit = 'font-size:20px;'
-      align = 'center'
-
-      fluidRow(
-        column(
-          width = 5, align = align, style = 'background-color:#a6cee3;',
-          p(strong(metrics$pct_ace, style = sty_n),
-            a(' %-points', br(), 'Increased Numeracy', style = sty_unit))
-        ),
-        column(
-          width = 4, align = align, style = 'background-color:#fb9a99;',
-          p(strong(metrics$pct_beginner, style = sty_n),
-            a(' %-points', br(), 'Decreased Innumeracy', style = sty_unit))
-        ),
-        column(
-          width = 3, align = align, style = 'background-color:#b2df8a;',
-          p(strong(metrics$pct_improved, style = sty_n),
-            a(' %', br(), 'Improved a Level', style = sty_unit))
-        )
-      )
-    })
-
     data_filt = reactive({
       req(data_proc, input$round_id)
       filt = CJ(round_id = input$round_id)
       get_data_filtered(
         data_proc()[startsWith(names(data_proc()), 'connected')], filt)
+    })
+
+    output$plot_trends = renderPlotly({
+      req(data_proc)
+      get_plot_trends_connected(
+        data_proc()$connected_students_nomissing,
+        data_proc()$connected_rounds)
     })
 
     # narrative text for the selected round

@@ -29,8 +29,6 @@ anno_base = list(
   font = list(size = 18), showarrow = FALSE, align = 'left',
   xref = 'paper', yref = 'paper', xanchor = 'left', yanchor = 'bottom')
 
-########################################
-
 # load parameters
 params = yaml::read_yaml('params.yaml')
 
@@ -63,12 +61,112 @@ get_data_filtered = function(x, filt = data.table(), filt_by_student = NULL) {
   y
 }
 
-########################################
-
 get_picker_options = function(noneSelectedText, ...) {
   pickerOptions(
     actionsBox = TRUE, selectedTextFormat = 'static',
     noneSelectedText = noneSelectedText, ...)
+}
+
+get_fills = function(type, palette = 'Blues') {
+  switch(
+    type,
+    total = 'black',
+    beginner = c('#fb9a99', '#e31a1c'),
+    ace = c('#a6cee3', '#1f78b4'),
+    improved = '#b2df8a', #'#33a02c',
+    full = rev(c(
+      '#EF5A5B', RColorBrewer::brewer.pal(n = 5L, name = palette)[-1L])))
+}
+
+get_title = function(type) {
+  switch(
+    type,
+    beginner = 'Innumeracy: beginner level',
+    ace  = 'Numeracy: division level',
+    improved = 'Improved a level (or more)',
+    beginner_diff = 'Decrease in innumeracy',
+    ace_diff = 'Increase in numeracy',
+    progress = 'Progress toward numeracy')
+}
+
+get_y_title = function(percent = TRUE, points = FALSE) {
+  y_title = if (percent) {
+    if (points) 'Share of students\n(%-points)' else 'Share of students (%)'
+  } else {
+    'Number of students'
+  }
+}
+
+get_overview_banner = function(students) {
+  n_unique = students[, .(
+    students = uniqueN(student_id),
+    facilitators = uniqueN(
+      .SD, by = c('facilitator_id_impl', 'facilitator_name_impl')),
+    schools = uniqueN(.SD, by = c('school_id', 'school_name')),
+    regions = uniqueN(region))]
+  n_unique = n_unique[, lapply(.SD, scales::label_comma())]
+
+  metrics = students[, .(
+    pct_beginner =
+      100 * sum(level_beginner_baseline - level_beginner_endline) / .N,
+    pct_ace = 100 * sum(level_ace_endline - level_ace_baseline) / .N,
+    pct_improved = 100 * sum(level_improved) / .N)]
+  metrics = metrics[, lapply(.SD, scales::label_number(accuracy = 1))]
+
+  wd = 3
+  align = 'center'
+  sty_n = 'font-size:26px;'
+  sty_unit = 'font-size:20px;'
+  icls = 'fa-2x'
+  sp = HTML('&nbsp;')
+
+  wellPanel(
+    fluidRow(
+      column(
+        width = wd, align = align,
+        strong(n_unique$students, style = sty_n), sp,
+        icon('child-reaching', icls), br(), p('Students', style = sty_unit)
+      ),
+      column(
+        width = wd, align = align,
+        strong(n_unique$facilitators, style = sty_n), sp,
+        icon('person-chalkboard', icls), br(),
+        p('Facilitators', style = sty_unit)
+      ),
+      column(
+        width = wd, align = align,
+        strong(n_unique$schools, style = sty_n), sp,
+        icon('school', icls), br(), p('Schools', style = sty_unit)
+      ),
+      column(
+        width = wd, align = align,
+        strong(n_unique$regions, style = sty_n), sp,
+        icon('map-location', icls), br(), p('Regions', style = sty_unit)
+      )#,
+      # column(
+      #   width = wd, align = align,
+      #   strong(n_unique$rounds, style = sty_n), HTML('&nbsp;'),
+      #   icon('scale-unbalanced', icls), br(), p('Rounds', style = sty_unit)
+      # )
+    ),
+    fluidRow(
+      column(
+        width = 5, align = align, style = 'background-color:#a6cee3;',
+        p(strong(metrics$pct_ace, style = sty_n),
+          a(' %-points', br(), 'Increase in Numeracy', style = sty_unit))
+      ),
+      column(
+        width = 4, align = align, style = 'background-color:#fb9a99;',
+        p(strong(metrics$pct_beginner, style = sty_n),
+          a(' %-points', br(), 'Decrease in Innumeracy', style = sty_unit))
+      ),
+      column(
+        width = 3, align = align, style = 'background-color:#b2df8a;',
+        p(strong(metrics$pct_improved, style = sty_n),
+          a(' %', br(), 'Improved a Level', style = sty_unit))
+      )
+    )
+  )
 }
 
 #' Get narrative text describing a round of ConnectEd
@@ -84,7 +182,7 @@ get_round_text = function(data_filt) {
   rounds_now = data_filt$connected_rounds
 
   overview_text = p(
-    h5(paste(rounds_now$round_name, 'Overview')),
+    h5(rounds_now$round_name),
     strong('Purpose: '), rounds_now$purpose, br(),
     strong('Conclusion: '), rounds_now$conclusion)
 
@@ -103,16 +201,6 @@ get_round_text = function(data_filt) {
   round_text = tagList(
     overview_text, h5('Treatments'), unlist(treatment_text, recursive = FALSE),
     em(glue('{n_students} students in total.')), h5('Results'))
-}
-
-########################################
-
-get_fills = function(type, palette = 'Blues') {
-  switch(
-    type, total = 'black', beginner = c('#fb9a99', '#e31a1c'),
-    ace = c('#a6cee3', '#1f78b4'), improved = '#b2df8a', #'#33a02c',
-    full = rev(c(
-      '#EF5A5B', RColorBrewer::brewer.pal(n = 5L, name = palette)[-1L])))
 }
 
 get_tooltips = function(
@@ -173,12 +261,11 @@ get_barplot_summary = function(
 
   data_now = get_barplot_data(data, x_col, col, by_treatment, percent)
   data_now = data_now[z == TRUE, env = list(z = col)]
-  y_lab = if (percent) 'Share of students (%)' else 'Number of students'
   y_scale = if (percent) label_percent_func else waiver()
 
   p = ggplot(data_now, aes(x = .data[[x_col]], y = quant)) +
     geom_col(aes(fill = .data[[x_col]], text = label), width = bar_width) +
-    labs(y = y_lab, title = title) +
+    labs(y = get_y_title(percent), title = title) +
     scale_x_discrete(drop = FALSE) +
     scale_y_continuous(labels = y_scale, limits = y_lims) +
     scale_fill_manual(drop = FALSE, values = fills) +
@@ -210,14 +297,13 @@ get_barplot_detailed = function(
   stopifnot(is_logical(percent))
 
   data_now = get_barplot_data(data, x_col, col, by_treatment, percent)
-  y_lab = if (percent) 'Share of students (%)' else 'Number of students'
   y_scale = if (percent) label_percent_func else waiver()
 
   p = ggplot(data_now, aes(x = .data[[x_col]], y = quant)) +
     geom_col(
       aes(fill = forcats::fct_rev(.data[[col]]), text = label),
       width = bar_width) +
-    labs(y = y_lab, fill = NULL, title = title) +
+    labs(y = get_y_title(percent), fill = NULL, title = title) +
     scale_y_continuous(labels = y_scale) +
     scale_fill_manual(values = fills) +
     theme(axis.title.x = element_blank())
@@ -237,41 +323,117 @@ facet_strip_bigger = function(p, size = 45) {
   p
 }
 
-get_trend_plot = function(
-    data, x_col, y_col, text_col, fill = NULL, shape = NULL, y_lims = NULL,
-    percent = TRUE, sign = 1, ...) {
+get_plot_trends_connected = function(students, rounds) {
+  metrics = students[, .(
+    n_beginner = sum(level_beginner_baseline - level_beginner_endline),
+    pct_beginner =
+      100 * sum(level_beginner_baseline - level_beginner_endline) / .N,
+    n_ace = sum(level_ace_endline - level_ace_baseline),
+    pct_ace = 100 * sum(level_ace_endline - level_ace_baseline) / .N,
+    n_improved = sum(level_improved),
+    pct_improved = 100 * sum(level_improved) / .N),
+    by = round_id] |>
+    merge(rounds[, .(round_id, round_name)], by = 'round_id')
 
-  p = ggplot(
-    data, aes(
-      x = .data[[x_col]], y = sign * .data[[y_col]], text = .data[[text_col]]))
+  metrics[, tt_beginner := get_tooltips(n_beginner, pct_beginner)]
+  metrics[, tt_ace := get_tooltips(n_ace, pct_ace)]
+  metrics[, tt_improved := get_tooltips(n_improved, pct_improved)]
+  metrics[, round_short := str_extract(round_name, '[0-9]+$')]
 
-  p = if (length(fill) == 1L) {
-    p + geom_point(fill = fill, shape = shape, ...)
-  } else {
-    p + geom_point(aes(fill = timepoint, shape = timepoint), ...) +
-      scale_fill_manual(values = fill) +
-      scale_shape_manual(values = shape)
-  }
+  marj = list(t = 30)
+  anno = c(list(x = 0, y = 1), anno_base)
 
-  if (percent) {
-    y_lab = 'Share of students (%)'
-    y_labs = label_percent_func
-  } else {
-    y_lab = 'Number of students'
-    y_labs = waiver()
-  }
+  fig = ggplot(metrics, aes(x = round_id, y = pct_ace, text = tt_ace)) +
+    geom_col(fill = get_fills('ace')[1L]) +
+    labs(y = get_y_title(points = TRUE)) +
+    scale_x_discrete(labels = metrics$round_short) +
+    scale_y_continuous(labels = label_percent_func, limits = c(0, NA)) +
+    theme(axis.title.x = element_blank())
+  fig_ace = ggplotly(fig, tooltip = 'text') |>
+    layout(annotations = c(text = get_title('ace_diff'), anno), margin = marj)
 
-  p = p +
-    labs(x = 'Year', y = y_lab, fill = NULL, shape = NULL) +
-    scale_x_continuous(
-      # scales::extended_breaks()
-      breaks = sort(unique(round(data[[x_col]]))), minor_breaks = NULL) +
-    scale_y_continuous(labels = y_labs, limits = y_lims)
-  p
+  fig = ggplot(
+    metrics, aes(x = round_id, y = pct_beginner, text = tt_beginner)) +
+    geom_col(fill = get_fills('beginner')[1L]) +
+    labs(y = get_y_title(points = TRUE)) +
+    scale_x_discrete(labels = metrics$round_short) +
+    scale_y_continuous(labels = label_percent_func, limits = c(0, NA)) +
+    theme(axis.title.x = element_blank())
+  fig_beginner = ggplotly(fig, tooltip = 'text') |>
+    layout(
+      annotations = c(text = get_title('beginner_diff'), anno), margin = marj)
+
+  fig = ggplot(
+    metrics, aes(x = round_id, y = pct_improved, text = tt_improved)) +
+    geom_col(fill = get_fills('improved')[1L]) +
+    labs(x = 'Round', y = get_y_title()) +
+    scale_x_discrete(labels = metrics$round_short) +
+    scale_y_continuous(labels = label_percent_func, limits = c(0, 100))
+  fig_improved = ggplotly(fig, tooltip = 'text') |>
+    layout(
+      annotations = c(text = get_title('improved'), anno), margin = marj)
+
+  subplot(
+    fig_ace, fig_beginner, fig_improved, nrows = 3L,
+    heights = c(0.33, 0.35, 0.32), margin = 0.04, titleX = TRUE, titleY = TRUE)
+}
+
+get_plot_trends_tarlnum = function(students) {
+  metrics = students[, .(
+    n_beginner = sum(level_beginner_baseline - level_beginner_endline),
+    pct_beginner =
+      100 * sum(level_beginner_baseline - level_beginner_endline) / .N,
+    n_ace = sum(level_ace_endline - level_ace_baseline),
+    pct_ace = 100 * sum(level_ace_endline - level_ace_baseline) / .N,
+    n_improved = sum(level_improved),
+    pct_improved = 100 * sum(level_improved) / .N),
+    by = year_term_num]
+
+  metrics[, tt_beginner := get_tooltips(n_beginner, pct_beginner)]
+  metrics[, tt_ace := get_tooltips(n_ace, pct_ace)]
+  metrics[, tt_improved := get_tooltips(n_improved, pct_improved)]
+
+  breaks = sort(unique(round(metrics$year_term_num)))
+  marj = list(t = 30)
+  anno = c(list(x = 0, y = 1), anno_base)
+
+  fig = ggplot(metrics, aes(x = year_term_num, y = pct_ace, text = tt_ace)) +
+    geom_col(fill = get_fills('ace')[1L]) +
+    labs(y = get_y_title(points = TRUE)) +
+    scale_x_continuous(breaks = breaks, minor_breaks = NULL) +
+    scale_y_continuous(labels = label_percent_func, limits = c(0, NA)) +
+    theme(axis.title.x = element_blank())
+  fig_ace = ggplotly(fig, tooltip = 'text') |>
+    layout(annotations = c(text = get_title('ace_diff'), anno), margin = marj)
+
+  fig = ggplot(
+    metrics, aes(x = year_term_num, y = pct_beginner, text = tt_beginner)) +
+    geom_col(fill = get_fills('beginner')[1L]) +
+    labs(y = get_y_title(points = TRUE)) +
+    scale_x_continuous(breaks = breaks, minor_breaks = NULL) +
+    scale_y_continuous(labels = label_percent_func, limits = c(0, NA)) +
+    theme(axis.title.x = element_blank())
+  fig_beginner = ggplotly(fig, tooltip = 'text') |>
+    layout(
+      annotations = c(text = get_title('beginner_diff'), anno), margin = marj)
+
+  fig = ggplot(
+    metrics, aes(x = year_term_num, y = pct_improved, text = tt_improved)) +
+    geom_col(fill = get_fills('improved')[1L]) +
+    labs(x = 'Year', y = get_y_title()) +
+    scale_x_continuous(breaks = breaks, minor_breaks = NULL) +
+    scale_y_continuous(labels = label_percent_func, limits = c(0, 100))
+  fig_improved = ggplotly(fig, tooltip = 'text') |>
+    layout(
+      annotations = c(text = get_title('improved'), anno), margin = marj)
+
+  subplot(
+    fig_ace, fig_beginner, fig_improved, nrows = 3L,
+    heights = c(0.32, 0.36, 0.32), margin = 0.045, titleX = TRUE, titleY = TRUE)
 }
 
 get_plot_kpis = function(data_long, data_wide) {
-  yaxis = list(title = 'Share of students (%)', titlefont = list(size = 20))
+  yaxis = list(title = get_y_title(), titlefont = list(size = 20))
 
   fig = get_barplot_summary(
     data_long, col = 'level_ace', fills = get_fills('ace'), by_treatment = TRUE)
@@ -300,9 +462,9 @@ get_plot_kpis = function(data_long, data_wide) {
   marj_layout = list(t = 65)
 
   annos = list(
-    list(x = 0, y = y[1L], text = 'Numeracy: division level'),
-    list(x = 0, y = y[2L], text = 'Innumeracy: beginner level'),
-    list(x = 0, y = y[3L], text = 'Improved a level (or more)'))
+    list(x = 0, y = y[1L], text = get_title('ace')),
+    list(x = 0, y = y[2L], text = get_title('beginner')),
+    list(x = 0, y = y[3L], text = get_title('improved')))
   annos = lapply(annos, \(z) c(z, anno_base))
 
   subplot(
@@ -310,8 +472,6 @@ get_plot_kpis = function(data_long, data_wide) {
     heights = heights, margin = marj_subplot, titleY = TRUE) |>
     layout(annotations = annos, margin = marj_layout)
 }
-
-########################################
 
 get_metrics = function(data_long, data_wide, by_cols, time_col = 'timepoint') {
   # assuming timepoints are Baseline and Endline and they're properly ordered

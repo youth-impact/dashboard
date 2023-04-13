@@ -16,42 +16,16 @@ tarlnum_ui = function(id) {
     mainPanel(
       tabsetPanel(
         tabPanel(
-          title = 'Key Outcomes',
+          title = 'Overview',
           br(),
+          uiOutput(ns('overview_banner')),
           plotlyOutput(ns('plot_kpis'), height = height)
         ),
         tabPanel(
           title = 'Trends',
-          fluidRow(
-            column(
-              width = 6,
-              plotlyOutput(ns('plot_trend_ace'), height = glue('{ht + 50}px'))
-            ),
-            column(
-              width = 6,
-              plotlyOutput(ns('plot_trend_beginner'), height = '350px')
-            )
-          ),
-          fluidRow(
-            column(
-              width = 6,
-              plotlyOutput(ns('plot_trend_ace_diff'), height = height)
-            ),
-            column(
-              width = 6,
-              plotlyOutput(ns('plot_trend_beginner_diff'), height = height)
-            )
-          ),
-          fluidRow(
-            column(
-              width = 6,
-              plotlyOutput(ns('plot_trend_improved'), height = height)
-            ),
-            column(
-              width = 6,
-              plotlyOutput(ns('plot_trend_total'), height = height)
-            )
-          )
+          br(),
+          plotlyOutput(
+            ns('plot_trends'), height = glue('{ht * 2.75}px'), width = '55%')
         ),
         tabPanel(
           title = 'Detailed Outcomes',
@@ -155,6 +129,11 @@ tarlnum_server = function(id, data_proc) {
       data_filt
     })
 
+    output$overview_banner = renderUI({
+      req(data_filt)
+      get_overview_banner(data_filt()$tarlnum_students_nomissing)
+    })
+
     output$ui_counts = renderUI({
       req(data_filt)
       counts = data_filt()$tarlnum_assessments_nomissing[, .(
@@ -167,7 +146,8 @@ tarlnum_server = function(id, data_proc) {
       txt = lapply(glue(
         '{counts$n_students} students ({counts$delivery_model})'),
         \(x) list(x, br()))
-      em(c(unlist(txt, recursive = FALSE), list(n_total_txt)))
+      em(c(unlist(txt, recursive = FALSE), list(n_total_txt)), br(), br(),
+         'Results based on students assessed at baseline and endline.')
     })
 
     output$plot_kpis = renderPlotly({
@@ -191,8 +171,8 @@ tarlnum_server = function(id, data_proc) {
       fig_improved = ggplotly(fig, tooltip = 'text')
 
       annos = list(
-        list(x = 0, y = 1, text = 'Numeracy: division level'),
-        list(x = 0.405, y = 1, text = 'Innumeracy: beginner level'),
+        list(x = 0, y = 1, text = get_title('ace')),
+        list(x = 0.405, y = 1, text = get_title('beginner')),
         list(x = 0.775, y = 1, text = 'Improved a level\n(or more)'))
       annos = lapply(annos, \(z) c(z, anno_base))
 
@@ -205,115 +185,9 @@ tarlnum_server = function(id, data_proc) {
         input$delivery_model, input$duration_days, input$region,
         input$year_term_str, input$baseline_level)
 
-    data_trend = reactive({
+    output$plot_trends = renderPlotly({
       req(data_filt)
-
-      metrics = get_metrics(
-        data_filt()$tarlnum_assessments_nomissing,
-        data_filt()$tarlnum_students_nomissing,
-        c('year_term_num', 'year_term_str'))
-
-      metrics$long[, tt_ace := get_tooltips(
-        n_ace, pct_ace, pre = year_term_str)]
-      metrics$long[, tt_beginner := get_tooltips(
-        n_beginner, pct_beginner, pre = year_term_str)]
-
-      metrics$wide[, tt_total := get_tooltips(n_total, pre = year_term_str)]
-      metrics$wide[, tt_improved := get_tooltips(
-        n_improved, pct_improved, pre = year_term_str)]
-
-      metrics$wide[, tt_ace_diff := get_tooltips(
-        n_ace_diff, pct_ace_diff, pre = year_term_str)]
-      metrics$wide[, tt_beginner_diff := get_tooltips(
-        n_beginner_diff, pct_beginner_diff, pre = year_term_str)]
-
-      metrics
-    })
-
-    marj = list(t = 30)
-    lej = list(
-      tracegroupgap = 0, x = 1, y = 1, xanchor = 'right', yanchor = 'bottom')
-
-    output$plot_trend_ace = renderPlotly({
-      req(data_trend)
-      fig = get_trend_plot(
-        data_trend()$long, x_col = 'year_term_num', y_col = 'pct_ace',
-        text_col = 'tt_ace', fill = get_fills('ace'), shape = c(24, 25),
-        size = 2.5, stroke = 0)
-      anno = list(x = 0, y = 1, text = 'Numeracy: division level')
-      ggplotly(fig, tooltip = 'text') |>
-        layout(
-          annotations = c(anno, anno_base), margin = marj, legend = lej)
-    }) |>
-      bindCache(
-        input$delivery_model, input$duration_days, input$region,
-        input$year_term_str, input$baseline_level)
-
-    output$plot_trend_beginner = renderPlotly({
-      req(data_trend)
-      fig = get_trend_plot(
-        data_trend()$long, x_col = 'year_term_num', y_col = 'pct_beginner',
-        text_col = 'tt_beginner', fill = get_fills('beginner'),
-        shape = c(24, 25), size = 2.5, stroke = 0)
-      anno = list(x = 0, y = 1, text = 'Innumeracy: beginner level')
-      ggplotly(fig, tooltip = 'text') |>
-        layout(annotations = c(anno, anno_base), margin = marj, legend = lej)
-    }) |>
-      bindCache(
-        input$delivery_model, input$duration_days, input$region,
-        input$year_term_str, input$baseline_level)
-
-    output$plot_trend_ace_diff = renderPlotly({
-      req(data_trend)
-      fig = get_trend_plot(
-        data_trend()$wide, x_col = 'year_term_num', y_col = 'pct_ace_diff',
-        text_col = 'tt_ace_diff', fill = get_fills('ace')[1L], shape = 21,
-        size = 2, stroke = 0)
-      anno = list(x = 0, y = 1, text = 'Increased numeracy')
-      ggplotly(fig, tooltip = 'text') |>
-        layout(annotations = c(anno, anno_base), margin = marj)
-    }) |>
-      bindCache(
-        input$delivery_model, input$duration_days, input$region,
-        input$year_term_str, input$baseline_level)
-
-    output$plot_trend_beginner_diff = renderPlotly({
-      req(data_trend)
-      fig = get_trend_plot(
-        data_trend()$wide, x_col = 'year_term_num', y_col = 'pct_beginner_diff',
-        text_col = 'tt_beginner_diff', fill = get_fills('beginner')[1L],
-        shape = 21, sign = -1, size = 2, stroke = 0)
-      anno = list(x = 0, y = 1, text = 'Decreased innumeracy')
-      ggplotly(fig, tooltip = 'text') |>
-        layout(annotations = c(anno, anno_base), margin = marj)
-    }) |>
-      bindCache(
-        input$delivery_model, input$duration_days, input$region,
-        input$year_term_str, input$baseline_level)
-
-    output$plot_trend_improved = renderPlotly({
-      req(data_trend)
-      fig = get_trend_plot(
-        data_trend()$wide, x_col = 'year_term_num', y_col = 'pct_improved',
-        text_col = 'tt_improved', fill = get_fills('improved'), shape = 21,
-        size = 2, stroke = 0)
-      anno = list(x = 0, y = 1, text = 'Improved a level (or more)')
-      ggplotly(fig, tooltip = 'text') |>
-        layout(annotations = c(anno, anno_base), margin = marj)
-    }) |>
-      bindCache(
-        input$delivery_model, input$duration_days, input$region,
-        input$year_term_str, input$baseline_level)
-
-    output$plot_trend_total = renderPlotly({
-      req(data_trend)
-      fig = get_trend_plot(
-        data_trend()$wide, x_col = 'year_term_num', y_col = 'n_total',
-        text_col = 'tt_total', fill = get_fills('total'), shape = 21,
-        percent = FALSE, size = 2, stroke = 0)
-      anno = list(x = 0, y = 1, text = 'Completed the program')
-      ggplotly(fig, tooltip = 'text') |>
-        layout(annotations = c(anno, anno_base), margin = marj)
+      get_plot_trends_tarlnum(data_filt()$tarlnum_students_nomissing)
     }) |>
       bindCache(
         input$delivery_model, input$duration_days, input$region,
@@ -409,9 +283,9 @@ tarlnum_server = function(id, data_proc) {
         'pct_improved', 'n_students', 'n_terms')
       cols_new = c(
         'Delivery model', 'Region', 'School name', 'School ID',
-        'Increased numeracy (%-pts)', 'Baseline numeracy (%)',
+        'Increase in numeracy (%-points)', 'Baseline numeracy (%)',
         'Endline numeracy (%)',
-        'Decreased innumeracy (%-pts)', 'Baseline innumeracy (%)',
+        'Decrease in innumeracy (%-points)', 'Baseline innumeracy (%)',
         'Endline innumeracy (%)',
         'Improved a level (%)', 'Number of students', 'Number of terms')
       setnames(metrics, cols_old, cols_new)
@@ -429,12 +303,12 @@ tarlnum_server = function(id, data_proc) {
       opts = list(pageLength = 25L)
       DT::datatable(metrics, rownames = FALSE, options = opts) |>
         formatStyle(
-          columns = 'Increased numeracy (%-pts)',
+          columns = 'Increase in numeracy (%-points)',
           background = styleColorBar(c(0, 100), get_fills('ace')[1L]),
           backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat',
           backgroundPosition = 'center') |>
         formatStyle(
-          columns = 'Decreased innumeracy (%-pts)',
+          columns = 'Decrease in innumeracy (%-points)',
           background = styleColorBar(c(0, 100), get_fills('beginner')[1L]),
           backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat',
           backgroundPosition = 'center') |>
@@ -480,7 +354,7 @@ tarlnum_server = function(id, data_proc) {
     output$plot_compare = renderPlotly({
       req(data_compare)
 
-      yaxis = list(title = 'Share of students (%)', titlefont = list(size = 20))
+      yaxis = list(title = get_y_title(), titlefont = list(size = 20))
       metrics = get_metrics(
         data_compare()$tarlnum_assessments_nomissing,
         data_compare()$tarlnum_students_nomissing,
@@ -525,10 +399,10 @@ tarlnum_server = function(id, data_proc) {
           title = 'Number of levels per week', titlefont = list(size = 20)))
 
       annos = list(
-        list(x = 0, y = 1.05, text = 'Numeracy: division level'),
-        list(x = 0.56, y = 1.05, text = 'Innumeracy: beginner level'),
-        list(x = 0, y = 0.46, text = 'Improved a level (or more)'),
-        list(x = 0.56, y = 0.46, text = 'Progress toward numeracy'))
+        list(x = 0, y = 1.05, text = get_title('ace')),
+        list(x = 0.56, y = 1.05, text = get_title('beginner')),
+        list(x = 0, y = 0.46, text = get_title('improved')),
+        list(x = 0.56, y = 0.46, text = get_title('progress')))
       annos = lapply(annos, \(z) c(z, anno_base))
 
       sp1 = subplot(fig_ace, fig_beginner, margin = 0.06, titleY = TRUE)

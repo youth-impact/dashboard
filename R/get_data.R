@@ -151,6 +151,8 @@ get_data_proc = function(data_drive) {
     region,
     school_name,
     school_id,
+    facilitator_id_impl = NA,
+    facilitator_name_impl = NA,
     student_id_orig = uid_s,
     student_gender = fcase(
       stu_gender == 'F', 'Female',
@@ -218,7 +220,7 @@ get_data_proc = function(data_drive) {
       program = 'TaRL Numeracy', delivery_model,
       year, term, year_term_str, year_term_num,
       region, school_name, school_id,
-      # facilitator_id_impl, facilitator_name_impl,
+      facilitator_id_impl, facilitator_name_impl,
       student_id, student_gender, student_age, student_standard)],
     fill = TRUE)
   setkeyv(
