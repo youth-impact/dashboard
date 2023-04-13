@@ -182,7 +182,7 @@ get_round_text = function(data_filt) {
   rounds_now = data_filt$connected_rounds
 
   overview_text = p(
-    h5(rounds_now$round_name),
+    h4(rounds_now$round_name),
     strong('Purpose: '), rounds_now$purpose, br(),
     strong('Conclusion: '), rounds_now$conclusion)
 
@@ -370,15 +370,18 @@ get_plot_trends_connected = function(students, rounds) {
     scale_x_discrete(labels = metrics$round_short) +
     scale_y_continuous(labels = label_percent_func, limits = c(0, 100))
   fig_improved = ggplotly(fig, tooltip = 'text') |>
-    layout(
-      annotations = c(text = get_title('improved'), anno), margin = marj)
+    layout(annotations = c(text = get_title('improved'), anno), margin = marj)
 
   subplot(
     fig_ace, fig_beginner, fig_improved, nrows = 3L,
     heights = c(0.33, 0.35, 0.32), margin = 0.04, titleX = TRUE, titleY = TRUE)
 }
 
-get_plot_trends_tarlnum = function(students) {
+get_plot_trends_tarlnum = function(students, by_year) {
+  by_cols = if (by_year) 'year' else c('year_term_num', 'year_term_str')
+  x_col = if (by_year) 'year' else 'year_term_num'
+  pre_col = if (by_year) 'year' else 'year_term_str'
+
   metrics = students[, .(
     n_beginner = sum(level_beginner_baseline - level_beginner_endline),
     pct_beginner =
@@ -387,19 +390,20 @@ get_plot_trends_tarlnum = function(students) {
     pct_ace = 100 * sum(level_ace_endline - level_ace_baseline) / .N,
     n_improved = sum(level_improved),
     pct_improved = 100 * sum(level_improved) / .N),
-    by = .(year_term_num, year_term_str)]
+    by = by_cols]
 
   metrics[, tt_beginner := get_tooltips(
-    n_beginner, pct_beginner, pre = year_term_str)]
-  metrics[, tt_ace := get_tooltips(n_ace, pct_ace, pre = year_term_str)]
+    n_beginner, pct_beginner, pre = pre_col), env = list(pre_col = pre_col)]
+  metrics[, tt_ace := get_tooltips(
+    n_ace, pct_ace, pre = pre_col), env = list(pre_col = pre_col)]
   metrics[, tt_improved := get_tooltips(
-    n_improved, pct_improved, pre = year_term_str)]
+    n_improved, pct_improved, pre = pre_col), env = list(pre_col = pre_col)]
 
-  breaks = sort(unique(round(metrics$year_term_num)))
+  breaks = sort(unique(round(metrics[[x_col]])))
   marj = list(t = 30)
   anno = c(list(x = 0, y = 1), anno_base)
 
-  fig = ggplot(metrics, aes(x = year_term_num, y = pct_ace, text = tt_ace)) +
+  fig = ggplot(metrics, aes(x = .data[[x_col]], y = pct_ace, text = tt_ace)) +
     geom_col(fill = get_fills('ace')[1L]) +
     labs(y = get_y_title(points = TRUE)) +
     scale_x_continuous(breaks = breaks, minor_breaks = NULL) +
@@ -409,7 +413,7 @@ get_plot_trends_tarlnum = function(students) {
     layout(annotations = c(text = get_title('ace_diff'), anno), margin = marj)
 
   fig = ggplot(
-    metrics, aes(x = year_term_num, y = pct_beginner, text = tt_beginner)) +
+    metrics, aes(x = .data[[x_col]], y = pct_beginner, text = tt_beginner)) +
     geom_col(fill = get_fills('beginner')[1L]) +
     labs(y = get_y_title(points = TRUE)) +
     scale_x_continuous(breaks = breaks, minor_breaks = NULL) +
@@ -420,14 +424,13 @@ get_plot_trends_tarlnum = function(students) {
       annotations = c(text = get_title('beginner_diff'), anno), margin = marj)
 
   fig = ggplot(
-    metrics, aes(x = year_term_num, y = pct_improved, text = tt_improved)) +
+    metrics, aes(x = .data[[x_col]], y = pct_improved, text = tt_improved)) +
     geom_col(fill = get_fills('improved')[1L]) +
     labs(x = 'Year', y = get_y_title()) +
     scale_x_continuous(breaks = breaks, minor_breaks = NULL) +
     scale_y_continuous(labels = label_percent_func, limits = c(0, 100))
   fig_improved = ggplotly(fig, tooltip = 'text') |>
-    layout(
-      annotations = c(text = get_title('improved'), anno), margin = marj)
+    layout(annotations = c(text = get_title('improved'), anno), margin = marj)
 
   subplot(
     fig_ace, fig_beginner, fig_improved, nrows = 3L,

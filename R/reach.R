@@ -59,7 +59,7 @@ reach_server = function(id, data_proc) {
           options = get_picker_options('Student genders')
         ),
         checkboxInput(
-          inputId = ns('agg_by_year'),
+          inputId = ns('by_year'),
           label = 'Aggregate by year',
           value = FALSE
         ),
@@ -79,9 +79,9 @@ reach_server = function(id, data_proc) {
     })
 
     output$table_counts = renderDataTable({
-      req(students_filt, !is.null(input$agg_by_year))
-      by_col = if (isTRUE(input$agg_by_year)) 'year' else 'year_term_str'
-      by_col_new = if (isTRUE(input$agg_by_year)) 'Year' else 'Year Term'
+      req(students_filt, !is.null(input$by_year))
+      by_col = if (input$by_year) 'year' else 'year_term_str'
+      by_col_new = if (input$by_year) 'Year' else 'Year Term'
 
       # TODO: filtering will have to come later when calculating cumulative
 

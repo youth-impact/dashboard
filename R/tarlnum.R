@@ -24,6 +24,7 @@ tarlnum_ui = function(id) {
         tabPanel(
           title = 'Trends',
           br(),
+          uiOutput(ns('ui_trends')),
           plotlyOutput(
             ns('plot_trends'), height = glue('{ht * 2.75}px'), width = '55%')
         ),
@@ -185,13 +186,23 @@ tarlnum_server = function(id, data_proc) {
         input$delivery_model, input$duration_days, input$region,
         input$year_term_str, input$baseline_level)
 
+    output$ui_trends = renderUI({
+      ns = session$ns
+      checkboxInput(
+        inputId = ns('by_year'),
+        label = 'Aggregate by year',
+        value = FALSE
+      )
+    })
+
     output$plot_trends = renderPlotly({
       req(data_filt)
-      get_plot_trends_tarlnum(data_filt()$tarlnum_students_nomissing)
+      get_plot_trends_tarlnum(
+        data_filt()$tarlnum_students_nomissing, isTRUE(input$by_year))
     }) |>
       bindCache(
         input$delivery_model, input$duration_days, input$region,
-        input$year_term_str, input$baseline_level)
+        input$year_term_str, input$baseline_level, input$by_year)
 
     output$plot_detailed_prepost = renderPlotly({
       req(data_filt)
