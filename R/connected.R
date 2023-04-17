@@ -116,7 +116,7 @@ connected_server = function(id, data_proc) {
       subplot(
         fig_ace, fig_beginner, fig_improved, widths = c(0.37, 0.37, 0.26),
         margin = 0.04, titleY = TRUE) |>
-        layout(annotations = annos, margin = list(t = 55))
+        layout(annotations = annos, margin = list(t = 40))
     })
 
     data_filt = reactive({

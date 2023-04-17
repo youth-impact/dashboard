@@ -170,7 +170,8 @@ get_data_proc = function(data_drive) {
     student_level_num = as.integer(student_level_str),
     student_id = paste(
       year, term, delivery_model, duration_days, region,
-      school_name, school_id, student_id_orig, sep = '|'),
+      school_name, school_id, student_id_orig, student_gender,
+      student_age, student_standard, student_class, sep = '|'),
     level_beginner = student_level_str == 'Beginner',
     level_ace = student_level_str == 'Division')]
   setkeyv(dp$tarlnum_assessments, c('student_id', 'timepoint'))
