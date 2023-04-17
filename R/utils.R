@@ -113,31 +113,36 @@ get_overview_banner = function(students, program) {
     pct_improved = 100 * sum(level_improved) / .N)]
   metrics = metrics[, lapply(.SD, scales::label_number(accuracy = 1))]
 
-  wd = if (program == 'connected') 3 else if (program == 'tarlnum') 4
   align = 'center'
   sty_n = 'font-size:26px;'
   sty_unit = 'font-size:20px;'
   icls = 'fa-2x'
   sp = HTML('&nbsp;')
+  wds = if (program == 'connected') {
+    list(students = 3, facilitators = 3, schools = 3, regions = 3)
+  } else if (program == 'tarlnum') {
+    list(regions = 5, schools = 4, students = 3, facilitators = 1)
+  }
+
 
   ui_cols = list()
   ui_cols$students = column(
-    width = wd, align = align,
+    width = wds$students, align = align,
     strong(n_unique$students, style = sty_n), sp,
     icon('child-reaching', icls), br(), p('Students', style = sty_unit))
 
   ui_cols$facilitators = column(
-    width = wd, align = align,
+    width = wds$facilitators, align = align,
     strong(n_unique$facilitators, style = sty_n), sp,
     icon('person-chalkboard', icls), br(), p('Facilitators', style = sty_unit))
 
   ui_cols$schools = column(
-    width = wd, align = align,
+    width = wds$schools, align = align,
     strong(n_unique$schools, style = sty_n), sp,
     icon('school', icls), br(), p('Schools', style = sty_unit))
 
   ui_cols$regions = column(
-    width = wd, align = align,
+    width = wds$regions, align = align,
     strong(n_unique$regions, style = sty_n), sp,
     icon('map-location', icls), br(), p('Regions', style = sty_unit))
 
