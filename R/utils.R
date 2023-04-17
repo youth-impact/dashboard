@@ -97,7 +97,7 @@ get_y_title = function(percent = TRUE, points = FALSE) {
   }
 }
 
-get_overview_banner = function(students) {
+get_overview_banner = function(students, program) {
   n_unique = students[, .(
     students = uniqueN(student_id),
     facilitators = uniqueN(
@@ -113,42 +113,43 @@ get_overview_banner = function(students) {
     pct_improved = 100 * sum(level_improved) / .N)]
   metrics = metrics[, lapply(.SD, scales::label_number(accuracy = 1))]
 
-  wd = 3
+  wd = if (program == 'connected') 3 else if (program == 'tarlnum') 4
   align = 'center'
   sty_n = 'font-size:26px;'
   sty_unit = 'font-size:20px;'
   icls = 'fa-2x'
   sp = HTML('&nbsp;')
 
-  wellPanel(
+  ui_cols = list()
+  ui_cols$students = column(
+    width = wd, align = align,
+    strong(n_unique$students, style = sty_n), sp,
+    icon('child-reaching', icls), br(), p('Students', style = sty_unit))
+
+  ui_cols$facilitators = column(
+    width = wd, align = align,
+    strong(n_unique$facilitators, style = sty_n), sp,
+    icon('person-chalkboard', icls), br(), p('Facilitators', style = sty_unit))
+
+  ui_cols$schools = column(
+    width = wd, align = align,
+    strong(n_unique$schools, style = sty_n), sp,
+    icon('school', icls), br(), p('Schools', style = sty_unit))
+
+  ui_cols$regions = column(
+    width = wd, align = align,
+    strong(n_unique$regions, style = sty_n), sp,
+    icon('map-location', icls), br(), p('Regions', style = sty_unit))
+
+  ui_row_program = if (program == 'connected') {
     fluidRow(
-      column(
-        width = wd, align = align,
-        strong(n_unique$students, style = sty_n), sp,
-        icon('child-reaching', icls), br(), p('Students', style = sty_unit)
-      ),
-      column(
-        width = wd, align = align,
-        strong(n_unique$facilitators, style = sty_n), sp,
-        icon('person-chalkboard', icls), br(),
-        p('Facilitators', style = sty_unit)
-      ),
-      column(
-        width = wd, align = align,
-        strong(n_unique$schools, style = sty_n), sp,
-        icon('school', icls), br(), p('Schools', style = sty_unit)
-      ),
-      column(
-        width = wd, align = align,
-        strong(n_unique$regions, style = sty_n), sp,
-        icon('map-location', icls), br(), p('Regions', style = sty_unit)
-      )#,
-      # column(
-      #   width = wd, align = align,
-      #   strong(n_unique$rounds, style = sty_n), HTML('&nbsp;'),
-      #   icon('scale-unbalanced', icls), br(), p('Rounds', style = sty_unit)
-      # )
-    ),
+      ui_cols$students, ui_cols$facilitators, ui_cols$schools, ui_cols$regions)
+  } else if (program == 'tarlnum') {
+    fluidRow(ui_cols$regions, ui_cols$schools, ui_cols$students)
+  }
+
+  wellPanel(
+    ui_row_program,
     fluidRow(
       column(
         width = 5, align = align, style = 'background-color:#a6cee3;',
@@ -179,11 +180,14 @@ get_overview_banner = function(students) {
 #'
 #' @return HTML tags.
 get_round_text = function(data_filt) {
-  rounds_now = data_filt$connected_rounds
+  rd_now = data_filt$connected_rounds
 
   overview_text = p(
-    br(), strong('Purpose: '), rounds_now$purpose, br(),
-    strong('Conclusion: '), rounds_now$conclusion)
+    br(), strong('Dates:'), # using en-dash
+    paste(rd_now$baseline_start_month, rd_now$endline_end_month, sep = '–'),
+    ' ', rd_now$year, br(),
+    strong('Purpose: '), rd_now$purpose, br(),
+    strong('Conclusion: '), rd_now$conclusion)
 
   data_now = merge(
     data_filt$connected_students_nomissing[, .N, keyby = arm_id],

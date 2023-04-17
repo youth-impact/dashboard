@@ -65,7 +65,7 @@ connected_server = function(id, data_proc) {
           inputId = ns('by_treatment'),
           label = 'Split selected round\'s results by treatment',
           value = TRUE),
-        em('Results based on students assessed at baseline and endline.')
+        em('Based on students assessed at baseline and endline.')
       )
     })
 
@@ -84,7 +84,7 @@ connected_server = function(id, data_proc) {
 
     output$overview_banner = renderUI({
       req(data_proc)
-      get_overview_banner(data_proc()$connected_students_nomissing)
+      get_overview_banner(data_proc()$connected_students_nomissing, 'connected')
     })
 
     output$overview_plot_kpis = renderPlotly({
@@ -139,7 +139,7 @@ connected_server = function(id, data_proc) {
 
     output$round_banner_kpis = output$round_banner_detailed = renderUI({
       req(data_proc)
-      get_overview_banner(data_filt()$connected_students_nomissing)
+      get_overview_banner(data_filt()$connected_students_nomissing, 'connected')
     })
 
     # narrative text for the selected round

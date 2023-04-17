@@ -109,7 +109,7 @@ get_data_proc = function(data_drive) {
 
   dp$connected_students[, `:=`(
     timepoint = 'Baseline to Endline',
-    level_progress = student_level_num_endline > student_level_num_baseline,
+    level_progress = student_level_num_endline - student_level_num_baseline,
     level_improved = student_level_num_endline > student_level_num_baseline)]
   setkeyv(dp$connected_students, 'student_id')
 

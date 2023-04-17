@@ -63,7 +63,7 @@ reach_server = function(id, data_proc) {
           label = 'Aggregate by year',
           value = FALSE
         ),
-        em('Results based on consented students.')
+        em('Based on consented students.')
       )
     })
 

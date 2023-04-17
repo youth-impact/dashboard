@@ -132,7 +132,7 @@ tarlnum_server = function(id, data_proc) {
 
     output$overview_banner = renderUI({
       req(data_filt)
-      get_overview_banner(data_filt()$tarlnum_students_nomissing)
+      get_overview_banner(data_filt()$tarlnum_students_nomissing, 'tarlnum')
     })
 
     output$ui_counts = renderUI({
@@ -147,8 +147,8 @@ tarlnum_server = function(id, data_proc) {
       txt = lapply(glue(
         '{counts$n_students} students ({counts$delivery_model})'),
         \(x) list(x, br()))
-      em(c(unlist(txt, recursive = FALSE), list(n_total_txt)), br(), br(),
-         'Results based on students assessed at baseline and endline.')
+      em('Based on students assessed at baseline and endline.', br(), br(),
+         c(unlist(txt, recursive = FALSE), list(n_total_txt)))
     })
 
     output$plot_kpis = renderPlotly({
@@ -264,7 +264,8 @@ tarlnum_server = function(id, data_proc) {
 
     output$table_by_school = renderDataTable({
       req(data_filt, !is.null(input$school_kpis_by_timepoint))
-      by_cols = c('delivery_model', 'region', 'school_name', 'school_id')
+      by_cols = c('region', 'school_name', 'school_id')
+      # by_cols = c('delivery_model', 'region', 'school_name', 'school_id')
 
       metrics = data_filt()$tarlnum_assessments_nomissing[, .(
         pct_ace = 100 * sum(level_ace, na.rm = TRUE) / .N,
@@ -288,12 +289,12 @@ tarlnum_server = function(id, data_proc) {
       setorder(metrics, -pct_ace_diff, pct_beginner_diff, -pct_improved)
 
       cols_old = c(
-        'delivery_model', 'region', 'school_name', 'school_id',
+        'school_name', 'school_id', 'region',
         'pct_ace_diff', 'pct_ace_Baseline', 'pct_ace_Endline',
         'pct_beginner_diff', 'pct_beginner_Baseline', 'pct_beginner_Endline',
         'pct_improved', 'n_students', 'n_terms')
       cols_new = c(
-        'Delivery model', 'Region', 'School name', 'School ID',
+        'School name', 'School ID', 'Region',
         'Increase in numeracy (%-points)', 'Baseline numeracy (%)',
         'Endline numeracy (%)',
         'Decrease in innumeracy (%-points)', 'Baseline innumeracy (%)',
@@ -301,7 +302,7 @@ tarlnum_server = function(id, data_proc) {
         'Improved a level (%)', 'Number of students', 'Number of terms')
       setnames(metrics, cols_old, cols_new)
       setcolorder(metrics, cols_new)
-      cols_num = cols_new[5:11]
+      cols_num = cols_new[4:10]
 
       if (isFALSE(input$school_kpis_by_timepoint)) {
         cols_drop = c(
@@ -311,7 +312,7 @@ tarlnum_server = function(id, data_proc) {
         cols_num = setdiff(cols_num, cols_drop)
       }
 
-      opts = list(pageLength = 25L)
+      opts = list(pageLength = 500L, lengthMenu = c(50, 150, 500))
       DT::datatable(metrics, rownames = FALSE, options = opts) |>
         formatStyle(
           columns = 'Increase in numeracy (%-points)',
