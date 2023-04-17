@@ -63,7 +63,7 @@ reach_server = function(id, data_proc) {
           label = 'Aggregate by year',
           value = FALSE
         ),
-        em('Based on consented students.')
+        em(tags$sup('‡'), 'All results based on consented students.')
       )
     })
 

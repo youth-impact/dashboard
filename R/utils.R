@@ -121,14 +121,15 @@ get_overview_banner = function(students, program) {
   wds = if (program == 'connected') {
     list(students = 3, facilitators = 3, schools = 3, regions = 3)
   } else if (program == 'tarlnum') {
-    list(regions = 5, schools = 4, students = 3, facilitators = 1)
+    list(students = 5, schools = 4, regions = 3, facilitators = 1)
   }
 
 
   ui_cols = list()
   ui_cols$students = column(
     width = wds$students, align = align,
-    strong(n_unique$students, style = sty_n), sp,
+    strong(n_unique$students, style = sty_n),
+    a(tags$sup('‡'), style = sty_unit), # a('*', style = 'font-size:22px;'),
     icon('child-reaching', icls), br(), p('Students', style = sty_unit))
 
   ui_cols$facilitators = column(
@@ -150,7 +151,7 @@ get_overview_banner = function(students, program) {
     fluidRow(
       ui_cols$students, ui_cols$facilitators, ui_cols$schools, ui_cols$regions)
   } else if (program == 'tarlnum') {
-    fluidRow(ui_cols$regions, ui_cols$schools, ui_cols$students)
+    fluidRow(ui_cols$students, ui_cols$schools, ui_cols$regions)
   }
 
   wellPanel(

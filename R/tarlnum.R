@@ -47,7 +47,7 @@ tarlnum_ui = function(id) {
         tabPanel(
           title = 'Outcomes by Delivery Model',
           br(),
-          p(em('Based on display options other than delivery model.')),
+          p(em('All results based on display options other than delivery model.')),
           plotlyOutput(ns('plot_compare'), height = glue('{ht * 2}px'))
         )
       ),
@@ -147,8 +147,9 @@ tarlnum_server = function(id, data_proc) {
       txt = lapply(glue(
         '{counts$n_students} students ({counts$delivery_model})'),
         \(x) list(x, br()))
-      em('Based on students assessed at baseline and endline.', br(), br(),
-         c(unlist(txt, recursive = FALSE), list(n_total_txt)))
+      em(tags$sup('‡'),
+         'All results based on students assessed at baseline and endline.',
+         br(), br(), c(unlist(txt, recursive = FALSE), list(n_total_txt)))
     })
 
     output$plot_kpis = renderPlotly({

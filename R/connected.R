@@ -65,7 +65,8 @@ connected_server = function(id, data_proc) {
           inputId = ns('by_treatment'),
           label = 'Split selected round\'s results by treatment',
           value = TRUE),
-        em('Based on students assessed at baseline and endline.')
+        em(tags$sup('‡'),
+           'All results based on students assessed at baseline and endline.')
       )
     })
 
