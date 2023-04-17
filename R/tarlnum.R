@@ -174,7 +174,7 @@ tarlnum_server = function(id, data_proc) {
       annos = list(
         list(x = 0, y = 1, text = get_title('ace')),
         list(x = 0.405, y = 1, text = get_title('beginner')),
-        list(x = 0.775, y = 1, text = 'Improved a level\n(or more)'))
+        list(x = 0.775, y = 1, text = 'Improved a level'))
       annos = lapply(annos, \(z) c(z, anno_base))
 
       subplot(

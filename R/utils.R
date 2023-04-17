@@ -83,7 +83,7 @@ get_title = function(type) {
     type,
     beginner = 'Innumeracy: beginner level',
     ace  = 'Numeracy: division level',
-    improved = 'Improved a level (or more)',
+    improved = 'Improved a level',
     beginner_diff = 'Decrease in innumeracy',
     ace_diff = 'Increase in numeracy',
     progress = 'Progress toward numeracy')

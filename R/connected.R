@@ -110,7 +110,7 @@ connected_server = function(id, data_proc) {
       annos = list(
         list(x = 0, y = 1, text = 'Numeracy: division level'),
         list(x = 0.405, y = 1, text = 'Innumeracy: beginner level'),
-        list(x = 0.775, y = 1, text = 'Improved a level\n(or more)'))
+        list(x = 0.775, y = 1, text = 'Improved a level'))
       annos = lapply(annos, \(z) c(z, anno_base))
 
       subplot(
