@@ -256,13 +256,18 @@ tarlnum_server = function(id, data_proc) {
 
     output$ui_school = renderUI({
       ns = session$ns
-      tagList(
-        checkboxInput(
-          inputId = ns('school_kpis_by_timepoint'),
-          label = 'Show key outcomes for baseline and endline',
-          value = FALSE,
-          width = '100%'),
-        downloadButton(ns('download_by_school')),
+      fluidRow(
+        column(
+          width = 6,
+          checkboxInput(
+            inputId = ns('school_kpis_by_timepoint'),
+            label = 'Show key outcomes for baseline and endline',
+            value = FALSE,
+            width = '100%')),
+        column(
+          width = 6, align = 'right',
+          downloadButton(ns('download_by_school'), style = 'font-size:80%')
+        ),
         br(), br()
       )
     })
