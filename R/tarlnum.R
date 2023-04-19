@@ -47,7 +47,7 @@ tarlnum_ui = function(id) {
         tabPanel(
           title = 'Outcomes by Delivery Model',
           br(),
-          p(em('All results based on display options other than delivery model.')),
+          p(em('Results based on display options other than delivery model.')),
           plotlyOutput(ns('plot_compare'), height = glue('{ht * 2}px'))
         )
       ),
@@ -256,17 +256,20 @@ tarlnum_server = function(id, data_proc) {
 
     output$ui_school = renderUI({
       ns = session$ns
-      checkboxInput(
-        inputId = ns('school_kpis_by_timepoint'),
-        label = 'Show key outcomes for baseline and endline',
-        value = FALSE,
-        width = '100%')
+      tagList(
+        checkboxInput(
+          inputId = ns('school_kpis_by_timepoint'),
+          label = 'Show key outcomes for baseline and endline',
+          value = FALSE,
+          width = '100%'),
+        downloadButton(ns('download_by_school')),
+        br(), br()
+      )
     })
 
-    output$table_by_school = renderDataTable({
+    metrics_by_school = reactive({
       req(data_filt, !is.null(input$school_kpis_by_timepoint))
       by_cols = c('region', 'school_name', 'school_id')
-      # by_cols = c('delivery_model', 'region', 'school_name', 'school_id')
 
       metrics = data_filt()$tarlnum_assessments_nomissing[, .(
         pct_ace = 100 * sum(level_ace, na.rm = TRUE) / .N,
@@ -303,7 +306,12 @@ tarlnum_server = function(id, data_proc) {
         'Improved a level (%)', 'Number of students', 'Number of terms')
       setnames(metrics, cols_old, cols_new)
       setcolorder(metrics, cols_new)
-      cols_num = cols_new[4:10]
+    })
+
+    output$table_by_school = renderDataTable({
+      req(metrics_by_school, !is.null(input$school_kpis_by_timepoint))
+      metrics = copy(metrics_by_school())
+      cols_num = colnames(metrics)[4:10]
 
       if (isFALSE(input$school_kpis_by_timepoint)) {
         cols_drop = c(
@@ -333,6 +341,12 @@ tarlnum_server = function(id, data_proc) {
         formatRound(columns = cols_num, digits = 1L) |>
         formatStyle(colnames(metrics), lineHeight = '80%')
     })
+
+    output$download_by_school = downloadHandler(
+      filename = \() 'tarl_numeracy_outcomes_by_school.xlsx',
+      content = function(file) {
+        writexl::write_xlsx(metrics_by_school(), file)}
+    )
 
     filt_compare = reactive({
       req(filt)
