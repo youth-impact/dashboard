@@ -247,9 +247,70 @@ get_data_server = function(id, folder_url) {
       valueFunc = \() get_data_drive(folder_url)
     )
 
+    get_counts = function(x) {
+      c(uniqueN(x), sum(is.na(x)), sum(x == '', na.rm = TRUE))
+    }
+    n_types = c('unique', 'missing', 'empty string')
+
+    output$validation_checks = renderPrint({
+      req(data_drive)
+
+      # ConnectEd
+      cols = c(
+        'hh_id', 'stud_age_bl', 'stud_std_bl', 'stud_level_bl', 'school_id_bl',
+        'school_name_bl', 'facilitator_id_i', 'facilitator_i', 'stud_level',
+        'treatment', 'round', 'stud_sex_bl', 'region_bl')
+      connected_1 = data_drive()$connected_students[
+        , lapply(.SD, get_counts), .SDcols = cols]
+      connected_1[, n_type := n_types]
+      setcolorder(connected_1, 'n_type')
+
+      connected_2 = data_drive()$connected_students[
+        , .(n_facilitator_i = uniqueN(facilitator_i)),
+        keyby = facilitator_id_i][n_facilitator_i > 1L]
+
+      connected_3 = data_drive()$connected_students[
+        , .(n_school_name_bl = uniqueN(school_name_bl)),
+        keyby = school_id_bl][n_school_name_bl > 1L]
+
+      cat('### ConnectEd counts of unique, missing, and empty string values\n')
+      print(connected_1)
+      cat('\n### ConnectEd facilitator_id_i linked to >1 facilitator_i\n')
+      print(connected_2)
+      cat('\n### ConnectEd school_id_bl linked to >1 school_name_bl\n')
+      print(connected_3)
+
+      # TaRL Numeracy
+      cols = c(
+        'year', 'term', 'phase', 'delivery_type', 'imp_length', 'round',
+        'region', 'school_name', 'school_id', 'uid_s', 'stu_gender', 'stu_std',
+        'stu_age', 'stu_class', 'stu_level')
+      tarlnum_1 = data_drive()$tarlnum_assessments[
+        , lapply(.SD, get_counts), .SDcols = cols]
+      tarlnum_1[, n_type := n_types]
+      setcolorder(tarlnum_1, 'n_type')
+
+      tarlnum_2 = data_drive()$tarlnum_assessments[
+        , .(n_school_name = uniqueN(school_name)), keyby = school_id][
+          n_school_name > 1L]
+
+      cat(paste(
+        '\n### TaRL Numeracy counts of unique,',
+        'missing, and empty string values\n'))
+      print(tarlnum_1)
+      cat('\n### TaRL Numeracy school_id linked to >1 school_name\n')
+      print(tarlnum_2)
+    })
+
     data_proc = reactive({
       req(data_drive)
       get_data_proc(data_drive())
     })
   })
+}
+
+get_data_ui = function(id) {
+  ns = NS(id)
+
+  verbatimTextOutput(ns('validation_checks'))
 }

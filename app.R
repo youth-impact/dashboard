@@ -28,6 +28,11 @@ ui = navbarPage(
   #   title = 'TaRL Literacy',
   #   'tarl literacy stuff' # placeholder
   # ),
+
+  tabPanel(
+    title = 'Data Validation',
+    get_data_ui('get_data')
+  )
 )
 
 # create the server object for the shiny app
