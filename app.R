@@ -26,7 +26,7 @@ ui = navbarPage(
 
   tabPanel(
     title = 'TaRL Literacy',
-    'tarl literacy stuff' # placeholder
+    tarllit_ui('tarllit')
   ),
 
   tabPanel(
@@ -48,6 +48,9 @@ server = function(input, output, session) {
 
   # TaRL numeracy
   tarlnum_server('tarlnum', data_proc)
+
+  # TaRL literacy
+  tarllit_server('tarllit', data_proc)
 }
 
 # create the shiny app object

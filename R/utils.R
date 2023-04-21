@@ -78,15 +78,26 @@ get_fills = function(type, palette = 'Blues') {
       '#EF5A5B', RColorBrewer::brewer.pal(n = 5L, name = palette)[-1L])))
 }
 
-get_title = function(type) {
-  switch(
-    type,
-    beginner = 'Innumeracy: beginner level',
-    ace  = 'Numeracy: division level',
-    improved = 'Improved a level',
-    beginner_diff = 'Decrease in innumeracy',
-    ace_diff = 'Increase in numeracy',
-    progress = 'Progress toward numeracy')
+get_title = function(metric, type = 'numeracy') {
+  if (type == 'numeracy') {
+    switch(
+      metric,
+      beginner = 'Innumeracy: beginner level',
+      ace  = 'Numeracy: division level',
+      improved = 'Improved a level',
+      beginner_diff = 'Decrease in innumeracy',
+      ace_diff = 'Increase in numeracy',
+      progress = 'Progress toward numeracy')
+  } else {
+    switch(
+      metric,
+      beginner = 'Illiteracy: beginner level',
+      ace  = 'Literacy: story level',
+      improved = 'Improved a level',
+      beginner_diff = 'Decrease in illiteracy',
+      ace_diff = 'Increase in literacy',
+      progress = 'Progress toward literacy')
+  }
 }
 
 get_y_title = function(percent = TRUE, points = FALSE) {
@@ -97,7 +108,7 @@ get_y_title = function(percent = TRUE, points = FALSE) {
   }
 }
 
-get_overview_banner = function(students, program) {
+get_overview_banner = function(students, program = 'connected') {
   n_unique = students[, .(
     students = uniqueN(student_id),
     facilitators = uniqueN(
@@ -120,16 +131,15 @@ get_overview_banner = function(students, program) {
   sp = HTML('&nbsp;')
   wds = if (program == 'connected') {
     list(students = 3, facilitators = 3, schools = 3, regions = 3)
-  } else if (program == 'tarlnum') {
+  } else {
     list(students = 5, schools = 4, regions = 3, facilitators = 1)
   }
-
 
   ui_cols = list()
   ui_cols$students = column(
     width = wds$students, align = align,
     strong(n_unique$students, style = sty_n),
-    a(tags$sup('‡'), style = sty_unit), # a('*', style = 'font-size:22px;'),
+    a(tags$sup('‡'), style = sty_unit),
     icon('child-reaching', icls), br(), p('Students', style = sty_unit))
 
   ui_cols$facilitators = column(
@@ -150,9 +160,14 @@ get_overview_banner = function(students, program) {
   ui_row_program = if (program == 'connected') {
     fluidRow(
       ui_cols$students, ui_cols$facilitators, ui_cols$schools, ui_cols$regions)
-  } else if (program == 'tarlnum') {
+  } else {
     fluidRow(ui_cols$students, ui_cols$schools, ui_cols$regions)
   }
+
+  title_ace = paste(
+    'Increase in', if (program != 'tarllit') 'Numeracy' else 'Literacy')
+  title_beginner = paste(
+    'Decrease in', if (program != 'tarllit') 'Innumeracy' else 'Illiteracy')
 
   wellPanel(
     ui_row_program,
@@ -160,12 +175,12 @@ get_overview_banner = function(students, program) {
       column(
         width = 5, align = align, style = 'background-color:#a6cee3;',
         p(strong(metrics$pct_ace, style = sty_n),
-          a(' %-points', br(), 'Increase in Numeracy', style = sty_unit))
+          a(' %-points', br(), title_ace, style = sty_unit))
       ),
       column(
         width = 4, align = align, style = 'background-color:#fb9a99;',
         p(strong(metrics$pct_beginner, style = sty_n),
-          a(' %-points', br(), 'Decrease in Innumeracy', style = sty_unit))
+          a(' %-points', br(), title_beginner, style = sty_unit))
       ),
       column(
         width = 3, align = align, style = 'background-color:#b2df8a;',
@@ -385,7 +400,7 @@ get_plot_trends_connected = function(students, rounds) {
     heights = c(0.33, 0.35, 0.32), margin = 0.04, titleX = TRUE, titleY = TRUE)
 }
 
-get_plot_trends_tarlnum = function(students, by_year) {
+get_plot_trends_tarl = function(students, by_year, type = 'numeracy') {
   by_cols = if (by_year) 'year' else c('year_term_num', 'year_term_str')
   x_col = if (by_year) 'year' else 'year_term_num'
   pre_col = if (by_year) 'year' else 'year_term_str'
@@ -418,7 +433,8 @@ get_plot_trends_tarlnum = function(students, by_year) {
     scale_y_continuous(labels = label_percent_func, limits = c(0, NA)) +
     theme(axis.title.x = element_blank())
   fig_ace = ggplotly(fig, tooltip = 'text') |>
-    layout(annotations = c(text = get_title('ace_diff'), anno), margin = marj)
+    layout(
+      annotations = c(text = get_title('ace_diff', type), anno), margin = marj)
 
   fig = ggplot(
     metrics, aes(x = .data[[x_col]], y = pct_beginner, text = tt_beginner)) +
@@ -429,7 +445,8 @@ get_plot_trends_tarlnum = function(students, by_year) {
     theme(axis.title.x = element_blank())
   fig_beginner = ggplotly(fig, tooltip = 'text') |>
     layout(
-      annotations = c(text = get_title('beginner_diff'), anno), margin = marj)
+      annotations = c(text = get_title('beginner_diff', type), anno),
+      margin = marj)
 
   fig = ggplot(
     metrics, aes(x = .data[[x_col]], y = pct_improved, text = tt_improved)) +
@@ -438,14 +455,15 @@ get_plot_trends_tarlnum = function(students, by_year) {
     scale_x_continuous(breaks = breaks, minor_breaks = NULL) +
     scale_y_continuous(labels = label_percent_func, limits = c(0, 100))
   fig_improved = ggplotly(fig, tooltip = 'text') |>
-    layout(annotations = c(text = get_title('improved'), anno), margin = marj)
+    layout(
+      annotations = c(text = get_title('improved', type), anno), margin = marj)
 
   subplot(
     fig_ace, fig_beginner, fig_improved, nrows = 3L,
     heights = c(0.32, 0.36, 0.32), margin = 0.045, titleX = TRUE, titleY = TRUE)
 }
 
-get_plot_kpis = function(data_long, data_wide) {
+get_plot_kpis = function(data_long, data_wide, type = 'numeracy') {
   yaxis = list(title = get_y_title(), titlefont = list(size = 20))
 
   fig = get_barplot_summary(
@@ -475,9 +493,9 @@ get_plot_kpis = function(data_long, data_wide) {
   marj_layout = list(t = 65)
 
   annos = list(
-    list(x = 0, y = y[1L], text = get_title('ace')),
-    list(x = 0, y = y[2L], text = get_title('beginner')),
-    list(x = 0, y = y[3L], text = get_title('improved')))
+    list(x = 0, y = y[1L], text = get_title('ace', type)),
+    list(x = 0, y = y[2L], text = get_title('beginner', type)),
+    list(x = 0, y = y[3L], text = get_title('improved', type)))
   annos = lapply(annos, \(z) c(z, anno_base))
 
   subplot(

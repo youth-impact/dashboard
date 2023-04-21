@@ -131,8 +131,13 @@ get_data_proc = function(data_drive) {
 
   ### numeracy_levels
   setkeyv(dp$numeracy_levels, 'level_int')
-  levs = dp$numeracy_levels$level_str
-  dp$numeracy_levels[, level_str := factor(level_str, levs)]
+  numer_levs = dp$numeracy_levels$level_str
+  dp$numeracy_levels[, level_str := factor(level_str, numer_levs)]
+
+  ### literacy_levels
+  setkeyv(dp$literacy_levels, 'level_int')
+  liter_levs = dp$literacy_levels$level_str
+  dp$literacy_levels[, level_str := factor(level_str, liter_levs)]
 
   ### connected_treatments
   # ok as is
@@ -172,8 +177,8 @@ get_data_proc = function(data_drive) {
       is.na(stud_sex_bl), 'Unknown', as.character(stud_sex_bl)),
     student_age = stud_age_bl,
     student_standard = stud_std_bl,
-    student_level_str_baseline = factor(stud_level_bl, levs),
-    student_level_str_endline = factor(stud_level, levs))]
+    student_level_str_baseline = factor(stud_level_bl, numer_levs),
+    student_level_str_endline = factor(stud_level, numer_levs))]
 
   dp$connected_students[, `:=`(
     student_level_num_baseline = as.integer(student_level_str_baseline),
@@ -199,6 +204,7 @@ get_data_proc = function(data_drive) {
     value.name = c(
       'student_level_str', 'student_level_num', 'level_beginner', 'level_ace'),
     value.factor = TRUE)
+
   dp$connected_assessments[
     , timepoint := factor(timepoint, labels = c('Baseline', 'Endline'))]
   setkeyv(dp$connected_assessments, c('student_id', 'timepoint'))
@@ -238,7 +244,7 @@ get_data_proc = function(data_drive) {
       student_standard = stu_std,
       student_class = fifelse(stu_class == '', 'Default', stu_class),
       timepoint = factor(round, c('Baseline', 'Midline', 'Endline')),
-      student_level_str = factor(stu_level, levs))])
+      student_level_str = factor(stu_level, numer_levs))])
 
   dp$tarlnum_assessments[, `:=`(
     year_term_str = glue('{year} T{term}', .envir = .SD),
@@ -264,6 +270,61 @@ get_data_proc = function(data_drive) {
     level_improved = student_level_num_endline > student_level_num_baseline)]
   setkeyv(dp$tarlnum_students, 'student_id')
 
+  ### tarllit_students
+  dp$tarllit_students = dp$tarllit_students[, .(
+    year = imp_year,
+    term = imp_term,
+    delivery_model = fifelse(
+      imp_type == 'Direct Delivery', 'Direct', 'Government'),
+    duration_days = as.integer(str_extract(imp_duration, '^[0-9]+')),
+    region,
+    school_name,
+    school_id,
+    facilitator_id_impl = NA,
+    facilitator_name_impl = NA,
+    student_id_orig = stu_uid,
+    student_gender = stu_gender,
+    student_age = stu_age,
+    student_standard = stu_std,
+    student_class = stu_class,
+    student_level_str_baseline = factor(stu_level_bsl, liter_levs),
+    student_level_str_endline = factor(stu_level_end, liter_levs))]
+
+  dp$tarllit_students[, `:=`(
+    year_term_str = glue('{year} T{term}', .envir = .SD),
+    year_term_num = year + (term - 1) / 3,
+    student_id = paste(
+      year, term, delivery_model, duration_days, region,
+      school_name, school_id, student_id_orig, student_gender,
+      student_age, student_standard, student_class, sep = '|'),
+    student_level_num_baseline = as.integer(student_level_str_baseline),
+    student_level_num_endline = as.integer(student_level_str_endline),
+    level_beginner_baseline = student_level_str_baseline == 'Beginner',
+    level_beginner_endline = student_level_str_endline == 'Beginner',
+    level_ace_baseline = student_level_str_baseline == 'Story',
+    level_ace_endline = student_level_str_endline == 'Story')]
+
+  dp$tarllit_students[, `:=`(
+    timepoint = 'Baseline to Endline',
+    level_progress = student_level_num_endline - student_level_num_baseline,
+    level_improved = student_level_num_endline > student_level_num_baseline)]
+  setkeyv(dp$tarllit_students, 'student_id')
+
+  ### tarllit_assessments
+  dp$tarllit_assessments = melt(
+    dp$tarllit_students[, !'timepoint'],
+    measure.vars = patterns(
+      '^student_level_str_', '^student_level_num_',
+      '^level_beginner_', '^level_ace_'),
+    variable.name = 'timepoint',
+    value.name = c(
+      'student_level_str', 'student_level_num', 'level_beginner', 'level_ace'),
+    value.factor = TRUE)
+
+  dp$tarllit_assessments[
+    , timepoint := factor(timepoint, labels = c('Baseline', 'Endline'))]
+  setkeyv(dp$tarllit_assessments, c('student_id', 'timepoint'))
+
   ### nomissing
   dp$connected_students_nomissing = dp$connected_students[
     !is.na(student_level_str_baseline) & !is.na(student_level_str_endline)]
@@ -272,6 +333,10 @@ get_data_proc = function(data_drive) {
   dp$tarlnum_students_nomissing = dp$tarlnum_students[
     !is.na(student_level_str_baseline) & !is.na(student_level_str_endline)]
   setkeyv(dp$tarlnum_students_nomissing, 'student_id')
+
+  dp$tarllit_students_nomissing = dp$tarllit_students[
+    !is.na(student_level_str_baseline) & !is.na(student_level_str_endline)]
+  setkeyv(dp$tarllit_students_nomissing, 'student_id')
 
   dp$connected_assessments_nomissing = dp$connected_assessments[
     timepoint %in% c('Baseline', 'Endline') & !is.na(student_level_str),
@@ -284,6 +349,11 @@ get_data_proc = function(data_drive) {
   dp$tarlnum_assessments_nomissing[
     , timepoint := factor(timepoint, c('Baseline', 'Endline'))]
   setkeyv(dp$tarlnum_assessments_nomissing, c('student_id', 'timepoint'))
+
+  dp$tarllit_assessments_nomissing = dp$tarllit_assessments[
+    timepoint %in% c('Baseline', 'Endline') & !is.na(student_level_str),
+    if (.N == 2L) .SD, by = student_id]
+  setkeyv(dp$tarllit_assessments_nomissing, c('student_id', 'timepoint'))
 
   ### reach_students
   dp$reach_students = rbind(
@@ -299,10 +369,16 @@ get_data_proc = function(data_drive) {
       region, school_name, school_id,
       facilitator_id_impl, facilitator_name_impl,
       student_id, student_gender, student_age, student_standard)],
+    dp$tarllit_students[, .(
+      program = 'TaRL Literacy', delivery_model,
+      year, term, year_term_str, year_term_num,
+      region, school_name, school_id,
+      facilitator_id_impl, facilitator_name_impl,
+      student_id, student_gender, student_age, student_standard)],
     fill = TRUE)
   setkeyv(
     dp$reach_students,
-    c('program', 'delivery_model', 'region', 'student_gender'))
+    c('program', 'delivery_model', 'region', 'student_gender', 'student_id'))
 
   dp
 }
