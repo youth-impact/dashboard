@@ -82,27 +82,29 @@ get_title = function(metric, type = 'numeracy') {
   if (type == 'numeracy') {
     switch(
       metric,
-      beginner = 'Innumeracy: beginner level',
-      ace  = 'Numeracy: division level',
-      improved = 'Improved a level',
-      beginner_diff = 'Decrease in innumeracy',
-      ace_diff = 'Increase in numeracy',
-      progress = 'Progress toward numeracy')
+      beginner = 'Innumeracy: Beginner Level',
+      ace  = 'Numeracy: Division Level',
+      improved = 'Improved a Level',
+      beginner_diff = 'Decrease in Innumeracy',
+      ace_diff = 'Increase in Numeracy',
+      progress = 'Progress toward Numeracy',
+      full = 'All Levels')
   } else {
     switch(
       metric,
-      beginner = 'Illiteracy: beginner level',
-      ace  = 'Literacy: story level',
-      improved = 'Improved a level',
-      beginner_diff = 'Decrease in illiteracy',
-      ace_diff = 'Increase in literacy',
-      progress = 'Progress toward literacy')
+      beginner = 'Illiteracy: Beginner Level',
+      ace  = 'Literacy: Story Level',
+      improved = 'Improved a Level',
+      beginner_diff = 'Decrease in Illiteracy',
+      ace_diff = 'Increase in Literacy',
+      progress = 'Progress toward Literacy',
+      full = 'All Levels')
   }
 }
 
 get_y_title = function(percent = TRUE, points = FALSE) {
   y_title = if (percent) {
-    if (points) 'Share of students\n(%-points)' else 'Share of students (%)'
+    if (points) 'Share of Students\n(%-points)' else 'Share of Students (%)'
   } else {
     'Number of students'
   }
@@ -185,7 +187,7 @@ get_overview_banner = function(students, program = 'connected') {
       column(
         width = 3, align = align, style = 'background-color:#b2df8a;',
         p(strong(metrics$pct_improved, style = sty_n),
-          a(' %', br(), 'Improved a Level', style = sty_unit))
+          a(' %', br(), get_title('improved'), style = sty_unit))
       )
     )
   )

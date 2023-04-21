@@ -210,7 +210,7 @@ tarlnum_server = function(id, data_proc) {
       fig = get_barplot_detailed(
         data_filt()$tarlnum_assessments_nomissing, col = 'student_level_str',
         fills = get_fills('full'))
-      anno = list(x = 0, y = 1, text = 'All levels')
+      anno = list(x = 0, y = 1, text = get_title('full'))
       lej = list(tracegroupgap = 0)
       ggplotly(fig, tooltip = 'text') |>
         layout(annotations = c(anno, anno_base), legend = lej)
@@ -303,12 +303,12 @@ tarlnum_server = function(id, data_proc) {
         'pct_beginner_diff', 'pct_beginner_Baseline', 'pct_beginner_Endline',
         'pct_improved', 'n_students', 'n_terms')
       cols_new = c(
-        'School name', 'School ID', 'Region',
-        'Increase in numeracy (%-points)', 'Baseline numeracy (%)',
-        'Endline numeracy (%)',
-        'Decrease in innumeracy (%-points)', 'Baseline innumeracy (%)',
-        'Endline innumeracy (%)',
-        'Improved a level (%)', 'Number of students', 'Number of terms')
+        'School Name', 'School ID', 'Region',
+        'Increase in Numeracy (%-points)', 'Baseline Numeracy (%)',
+        'Endline Numeracy (%)',
+        'Decrease in Innumeracy (%-points)', 'Baseline Innumeracy (%)',
+        'Endline Innumeracy (%)',
+        'Improved a Level (%)', 'Number of Students', 'Number of Terms')
       setnames(metrics, cols_old, cols_new)
       setcolorder(metrics, cols_new)
     })
@@ -320,8 +320,8 @@ tarlnum_server = function(id, data_proc) {
 
       if (isFALSE(input$school_kpis_by_timepoint)) {
         cols_drop = c(
-          'Baseline numeracy (%)', 'Endline numeracy (%)',
-          'Baseline innumeracy (%)', 'Endline innumeracy (%)')
+          'Baseline Numeracy (%)', 'Endline Numeracy (%)',
+          'Baseline Innumeracy (%)', 'Endline Innumeracy (%)')
         metrics[, (cols_drop) := NULL]
         cols_num = setdiff(cols_num, cols_drop)
       }
@@ -329,17 +329,17 @@ tarlnum_server = function(id, data_proc) {
       opts = list(pageLength = 500L, lengthMenu = c(50, 150, 500))
       DT::datatable(metrics, rownames = FALSE, options = opts) |>
         formatStyle(
-          columns = 'Increase in numeracy (%-points)',
+          columns = 'Increase in Numeracy (%-points)',
           background = styleColorBar(c(0, 100), get_fills('ace')[1L]),
           backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat',
           backgroundPosition = 'center') |>
         formatStyle(
-          columns = 'Decrease in innumeracy (%-points)',
+          columns = 'Decrease in Innumeracy (%-points)',
           background = styleColorBar(c(0, 100), get_fills('beginner')[1L]),
           backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat',
           backgroundPosition = 'center') |>
         formatStyle(
-          columns = 'Improved a level (%)',
+          columns = 'Improved a Level (%)',
           background = styleColorBar(c(0, 100), get_fills('improved')),
           backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat',
           backgroundPosition = 'center') |>

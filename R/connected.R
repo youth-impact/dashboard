@@ -109,9 +109,9 @@ connected_server = function(id, data_proc) {
       fig_improved = ggplotly(fig, tooltip = 'text')
 
       annos = list(
-        list(x = 0, y = 1, text = 'Numeracy: division level'),
-        list(x = 0.405, y = 1, text = 'Innumeracy: beginner level'),
-        list(x = 0.775, y = 1, text = 'Improved a level'))
+        list(x = 0, y = 1, text = get_title('ace')),
+        list(x = 0.405, y = 1, text = get_title('beginner')),
+        list(x = 0.775, y = 1, text = get_title('improved')))
       annos = lapply(annos, \(z) c(z, anno_base))
 
       subplot(
@@ -191,7 +191,7 @@ connected_server = function(id, data_proc) {
       y = 1.2
       marj = list(t = 65)
 
-      anno = c(list(x = 0, y = y, text = 'All levels'), anno_base)
+      anno = c(list(x = 0, y = y, text = get_title('full')), anno_base)
       lej = list(tracegroupgap = 0)
       layout(fig, annotations = anno, margin = marj, legend = lej)
     }) |>
