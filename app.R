@@ -24,10 +24,10 @@ ui = navbarPage(
     tarlnum_ui('tarlnum')
   ),
 
-  # tabPanel(
-  #   title = 'TaRL Literacy',
-  #   'tarl literacy stuff' # placeholder
-  # ),
+  tabPanel(
+    title = 'TaRL Literacy',
+    'tarl literacy stuff' # placeholder
+  ),
 
   tabPanel(
     title = 'Data Validation',
