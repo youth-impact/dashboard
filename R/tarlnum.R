@@ -424,11 +424,11 @@ tarlnum_server = function(id, data_proc) {
               ymax = mean_progress_per_week + sd_progress_per_week,
               text = tt_progress),
           size = 2, linewidth = 3) +
-        labs(y = 'Number of levels per week') +
+        # labs(y = 'Number of Levels per Week') +
         theme(axis.title.x = element_blank())
       fig_progress = ggplotly(fig, tooltip = 'text') |>
         layout(yaxis = list(
-          title = 'Number of levels per week', titlefont = list(size = 20)))
+          title = 'Number of Levels per Week', titlefont = list(size = 20)))
 
       annos = list(
         list(x = 0, y = 1.05, text = get_title('ace')),
