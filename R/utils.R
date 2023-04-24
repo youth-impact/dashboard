@@ -106,7 +106,7 @@ get_y_title = function(percent = TRUE, points = FALSE) {
   y_title = if (percent) {
     if (points) 'Share of Students\n(%-points)' else 'Share of Students (%)'
   } else {
-    'Number of students'
+    'Number of Students'
   }
 }
 

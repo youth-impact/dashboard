@@ -2,17 +2,17 @@
 ui = navbarPage(
   theme = bslib::bs_theme(bootswatch = 'cosmo'),
   title = 'Youth Impact',
-  selected = 'ConnectEd', # temporary
+  selected = 'Zones', # temporary
 
   tabPanel(
     title = 'Reach',
     reach_ui('reach')
   ),
 
-  # tabPanel(
-  #   title = 'Zones',
-  #   'zones stuff' # placeholder
-  # ),
+  tabPanel(
+    title = 'Zones',
+    zones_ui('zones')
+  ),
 
   tabPanel(
     title = 'ConnectEd',
@@ -42,6 +42,9 @@ server = function(input, output, session) {
 
   # Reach
   reach_server('reach', data_proc)
+
+  # Zones
+  zones_server('zones', data_proc)
 
   # ConnectEd
   connected_server('connected', data_proc)

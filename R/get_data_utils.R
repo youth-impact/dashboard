@@ -116,6 +116,33 @@ get_data_validation = function(data_drive) {
   print(tarllit_1)
   cat('\n### TaRL Literacy school_id linked to >1 school_name\n')
   print(tarllit_2)
+
+  # Zones
+  zones_assessments = merge(
+    rbindlist(
+      data_drive[startsWith(names(data_drive), 'zones_assessments_')],
+      fill = TRUE, idcol = 'file_name'),
+    data_drive$zones_metadata, by = 'file_name')
+
+  cols = c(
+    'year', 'term', 'round', 'student_gender', 'school_name',
+    'fac_id', 'k_hiv_least_10to19', 'k_hiv_riskiest_older')
+  zones_1 = zones_assessments[, lapply(.SD, get_counts), .SDcols = cols]
+  zones_1[, n_type := n_types]
+  setcolorder(zones_1, 'n_type')
+
+  cat('\n### Zones counts of unique, missing, and empty string values\n')
+  print(zones_1)
+
+  zones_2 = zones_assessments[, .(
+    n_total = .N,
+    n_missing_older = sum(is.na(k_hiv_riskiest_older)),
+    n_missing_10to19 = sum(is.na(k_hiv_least_10to19))),
+    keyby = .(file_name, round)]
+
+  cat('\n### Zones counts of total and missing values per file per timepiont\n')
+  print(zones_2)
+
   invisible()
 }
 
@@ -125,7 +152,7 @@ get_data_proc = function(data_drive) {
     must.include = c(
       'connected_arms', 'connected_rounds', 'connected_students',
       'connected_treatments', 'numeracy_levels', 'tarlnum_assessments',
-      'literacy_levels', 'tarllit_students'))
+      'literacy_levels', 'tarllit_students', 'zones_metadata'))
 
   dp = lapply(data_drive, copy)
 
@@ -325,6 +352,39 @@ get_data_proc = function(data_drive) {
     , timepoint := factor(timepoint, labels = c('Baseline', 'Endline'))]
   setkeyv(dp$tarllit_assessments, c('student_id', 'timepoint'))
 
+  ### zones_assessments
+  zones_assessments = merge(
+    rbindlist(
+      data_drive[startsWith(names(data_drive), 'zones_assessments_')],
+      fill = TRUE, idcol = 'file_name'),
+    data_drive$zones_metadata, by = 'file_name')
+
+  dp$zones_assessments = zones_assessments[, .(
+    year,
+    term,
+    year_term_str = glue('{year} T{term}', .envir = .SD),
+    year_term_num = year + (term - 1) / 3,
+    region = NA,
+    school_id = NA,
+    school_name = fifelse(school_name == '', NA, school_name),
+    facilitator_id_impl = fac_id,
+    facilitator_name_impl = NA,
+    student_gender,
+    student_age = NA,
+    student_standard = NA,
+    timepoint = factor(
+      round, c('baseline', 'endline'), c('Baseline', 'Endline')),
+    know_hiv_least_10to19 = fcase(
+      k_hiv_least_10to19 == 'Yes', TRUE, k_hiv_least_10to19 == 'No', FALSE),
+    know_hiv_riskiest_older = fcase(
+      k_hiv_riskiest_older == 'Yes', TRUE, k_hiv_riskiest_older == 'No', FALSE))]
+
+  dp$zones_assessments[, student_id := paste(
+    year, term, student_gender, timepoint, 1:.N, sep = '|')]
+
+  dp[startsWith(names(dp), 'zones_assessments_')] = NULL
+  dp$zones_metadata = NULL
+
   ### nomissing
   dp$connected_students_nomissing = dp$connected_students[
     !is.na(student_level_str_baseline) & !is.na(student_level_str_endline)]
@@ -360,19 +420,25 @@ get_data_proc = function(data_drive) {
     dp$connected_students[, .(
       program = 'ConnectEd', delivery_model = 'Direct',
       year, term, year_term_str, year_term_num,
-      region, school_name, school_id,
+      region, school_id, school_name,
       facilitator_id_impl, facilitator_name_impl,
       student_id, student_gender, student_age, student_standard)],
     dp$tarlnum_students[, .(
       program = 'TaRL Numeracy', delivery_model,
       year, term, year_term_str, year_term_num,
-      region, school_name, school_id,
+      region, school_id, school_name,
       facilitator_id_impl, facilitator_name_impl,
       student_id, student_gender, student_age, student_standard)],
     dp$tarllit_students[, .(
       program = 'TaRL Literacy', delivery_model,
       year, term, year_term_str, year_term_num,
-      region, school_name, school_id,
+      region, school_id, school_name,
+      facilitator_id_impl, facilitator_name_impl,
+      student_id, student_gender, student_age, student_standard)],
+    dp$zones_assessments[timepoint == 'Endline', .(
+      program = 'Zones', delivery_model = 'Direct',
+      year, term, year_term_str, year_term_num,
+      region = 'Unknown', school_id, school_name,
       facilitator_id_impl, facilitator_name_impl,
       student_id, student_gender, student_age, student_standard)],
     fill = TRUE)
@@ -380,5 +446,6 @@ get_data_proc = function(data_drive) {
     dp$reach_students,
     c('program', 'delivery_model', 'region', 'student_gender', 'student_id'))
 
+  dp$`_file_metadata` = NULL
   dp
 }
