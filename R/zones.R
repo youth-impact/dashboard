@@ -18,7 +18,7 @@ zones_ui = function(id) {
         tabPanel(
           title = 'Overview',
           br(),
-          # uiOutput(ns('overview_banner')),
+          uiOutput(ns('overview_banner')),
           plotlyOutput(ns('plot_kpis'), height = height)
         ),
       ),
@@ -56,6 +56,44 @@ zones_server = function(id, data_proc) {
       get_data_filtered(data_proc()['zones_assessments'], filt)[[1L]]
     })
 
+    output$overview_banner = renderUI({
+      req(data_filt)
+
+      metrics = copy(data_filt())[student_gender == 'Female', .(
+        pct_younger = 100 * sum(know_hiv_least_10to19, na.rm = TRUE) /
+          sum(!is.na(know_hiv_least_10to19)),
+        pct_older = 100 * sum(know_hiv_riskiest_older, na.rm = TRUE) /
+          sum(!is.na(know_hiv_riskiest_older))),
+        keyby = timepoint][, lapply(.SD, diff), .SDcols = !'timepoint']
+      metrics = metrics[, lapply(.SD, scales::label_number(accuracy = 1))]
+
+      sty_n = 'font-size:26px;'
+      sty_unit = 'font-size:20px;'
+      sp = HTML('&nbsp;')
+
+      txt_younger = paste(
+        'Increase in female students who know 10-to-19-year-olds',
+        'have lowest prevalence of HIV')
+      txt_older = paste(
+        'Increase in female students who know older partners have',
+        'highest risk of transmitting HIV')
+
+      wellPanel(
+        fluidRow(
+          column(
+            width = 6, style = 'background-color:#a6cee3;',
+            p(strong(metrics$pct_younger, style = sty_n),
+              a(' %-points', br(), txt_younger, style = sty_unit))
+          ),
+          column(
+            width = 6, style = 'background-color:#fb9a99;',
+            p(strong(metrics$pct_older, style = sty_n),
+              a(' %-points', br(), txt_older, style = sty_unit))
+          )
+        )
+      )
+    })
+
     output$plot_kpis = renderPlotly({
       req(data_filt)
       data_now = copy(data_filt())
@@ -72,12 +110,12 @@ zones_server = function(id, data_proc) {
 
       fig = get_barplot_summary(
         data_now[!is.na(know_hiv_riskiest_older)],
-        col = 'know_hiv_riskiest_older', fills = get_fills('ace'),
+        col = 'know_hiv_riskiest_older', fills = get_fills('beginner'),
         by_treatment = TRUE)
       fig_older = ggplotly(fig, tooltip = 'text')
 
-      txt_younger = 'Know that 10-to-19-year-olds\nhave lowest prevalence of HIV'
-      txt_older = 'Know that older partners\nhave highest risk of\ntransmitting HIV'
+      txt_younger = 'Know 10-to-19-year-olds have\nlowest prevalence of HIV'
+      txt_older = 'Know older partners\nhave highest risk\nof transmitting HIV'
       annos = list(
         list(x = 0, y = 1.13, text = txt_younger),
         list(x = 0.69, y = 1.13, text = txt_older))
