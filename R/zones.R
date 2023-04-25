@@ -21,6 +21,12 @@ zones_ui = function(id) {
           uiOutput(ns('overview_banner')),
           plotlyOutput(ns('plot_kpis'), height = height)
         ),
+        tabPanel(
+          title = 'Outcomes as Table',
+          br(),
+          uiOutput(ns('ui_table')),
+          div(dataTableOutput(ns('table_kpis')), style = 'font-size:80%')
+        )
       ),
       width = 9
     )
@@ -127,6 +133,57 @@ zones_server = function(id, data_proc) {
         layout(annotations = annos, margin = list(t = 100), yaxis = yaxis)
     }) |>
       bindCache(input$year_term_str)
+
+    output$ui_table = renderUI({
+      ns = session$ns
+      fluidRow(
+        column(
+          width = 6,
+          checkboxInput(
+            inputId = ns('table_show_timepoints'),
+            label = 'Show outcomes for baseline and endline',
+            value = FALSE,
+            width = '100%')),
+        column(
+          width = 6, align = 'right',
+          downloadButton(ns('download_table'), style = 'font-size:80%')
+        ),
+        br(), br()
+      )
+    })
+
+    output$table_kpis = renderDataTable({
+      req(data_filt, !is.null(input$table_show_timepoints))
+
+      # TODO: options to aggregate by year, year_term_str, school, facilitator
+      q_cols = c('know_hiv_least_10to19', 'know_hiv_riskiest_older')
+      by_cols = c('year', 'student_gender', 'facilitator_id_impl')
+
+      metrics = get_metrics_zones(data_filt(), q_cols, by_cols)
+      cols_num = colnames(metrics)[(length(by_cols) + 1L):ncol(metrics)]
+
+      if (isFALSE(input$table_show_timepoints)) {
+        cols_drop = colnames(metrics)[
+          grepl('_(base|end)line$', colnames(metrics))]
+        metrics[, (cols_drop) := NULL]
+        cols_num = setdiff(cols_num, cols_drop)
+      }
+
+      opts = list(pageLength = 500L, lengthMenu = c(50, 150, 500))
+      DT::datatable(metrics, rownames = FALSE, options = opts) |>
+        formatStyle(
+          columns = 'know_hiv_least_10to19_diff',
+          background = styleColorBar(c(0, 100), get_fills('ace')[1L]),
+          backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat',
+          backgroundPosition = 'center') |>
+        formatStyle(
+          columns = 'know_hiv_riskiest_older_diff',
+          background = styleColorBar(c(0, 100), get_fills('beginner')[1L]),
+          backgroundSize = '98% 88%', backgroundRepeat = 'no-repeat',
+          backgroundPosition = 'center') |>
+        formatRound(columns = cols_num, digits = 1L) |>
+        formatStyle(colnames(metrics), lineHeight = '80%')
+    })
 
   })
 }

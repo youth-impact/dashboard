@@ -435,7 +435,7 @@ get_data_proc = function(data_drive) {
       region, school_id, school_name,
       facilitator_id_impl, facilitator_name_impl,
       student_id, student_gender, student_age, student_standard)],
-    dp$zones_assessments[timepoint == 'Endline', .(
+    dp$zones_assessments[timepoint == 'Baseline', .(
       program = 'Zones', delivery_model = 'Direct',
       year, term, year_term_str, year_term_num,
       region = 'Unknown', school_id, school_name,

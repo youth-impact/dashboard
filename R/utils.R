@@ -545,3 +545,21 @@ get_metrics = function(data_long, data_wide, by_cols, time_col = 'timepoint') {
   a2 = merge(a2, a3, by = by_cols)
   list(long = a1, wide = a2)
 }
+
+get_metrics_zones = function(data, q_cols, by_cols) {
+  metrics = data[
+    , lapply(.SD, \(x) 100 * sum(x, na.rm = TRUE) / sum(!is.na(x))),
+    keyby = c(by_cols, 'timepoint'), .SDcols = q_cols]
+
+  form = formula(glue('{y} ~ timepoint', y = paste(by_cols, collapse = '+')))
+  metrics = dcast(metrics, form, value.var = q_cols)
+  setnames(metrics, tolower)
+
+  for (j in q_cols) {
+    set(metrics, j = paste0(j, '_diff'),
+        value = metrics[[paste0(j, '_endline')]] -
+          metrics[[paste0(j, '_baseline')]])
+  }
+  setcolorder(metrics, paste0(q_cols, '_diff'), after = length(by_cols))
+  setorderv(metrics, paste0(q_cols, '_diff'), order = -1L)
+}

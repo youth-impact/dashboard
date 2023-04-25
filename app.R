@@ -3,32 +3,26 @@ ui = navbarPage(
   theme = bslib::bs_theme(bootswatch = 'cosmo'),
   title = 'Youth Impact',
   selected = 'Zones', # temporary
-
   tabPanel(
     title = 'Reach',
     reach_ui('reach')
   ),
-
   tabPanel(
     title = 'Zones',
     zones_ui('zones')
   ),
-
   tabPanel(
     title = 'ConnectEd',
     connected_ui('connected')
   ),
-
   tabPanel(
     title = 'TaRL Numeracy',
     tarlnum_ui('tarlnum')
   ),
-
   tabPanel(
     title = 'TaRL Literacy',
     tarllit_ui('tarllit')
   ),
-
   tabPanel(
     title = 'Data Validation',
     get_data_ui('get_data')
