@@ -594,9 +594,8 @@ get_metrics_zones = function(data, q_cols, by_cols) {
     keyby = by_cols_2, .SDcols = q_cols]
 
   form = formula(glue(
-    '{y} ~ student_gender + timepoint',
-    y = paste(by_cols, collapse = '+')))
-  metrics = dcast(metrics, form, value.var = q_cols) #c(q_cols, 'n_students')
+    '{y} ~ student_gender + timepoint', y = paste(by_cols, collapse = '+')))
+  metrics = dcast(metrics, form, value.var = q_cols)
   setnames(metrics, tolower)
 
   counts = data[, .(

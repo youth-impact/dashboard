@@ -164,7 +164,7 @@ zones_server = function(id, data_proc) {
         'know_hiv_riskiest_older_female_diff')
       cols_new = c(
         'School Name', 'School ID', 'Region', 'Number of Terms',
-        glue('Number of {g}s at Baseline', g = c('Female', 'Male')),
+        glue('Number of {g}s', g = c('Female', 'Male')),
         glue('Increase in {g}s who know 10-to-19-y.o.s have ',
              'lowest prevalence of HIV (%-points)', g = c('female', 'male')),
         paste('Increase in females who know older partners have',
@@ -182,6 +182,7 @@ zones_server = function(id, data_proc) {
       req(data_filt)#, !is.null(input$table_show_timepoints))
 
       metrics = copy(metrics_by_school())
+      by_cols = c('school_id', 'school_name', 'region')
       cols_num = colnames(metrics)[(length(by_cols) + 1L):(ncol(metrics) - 3L)]
 
       # if (isFALSE(input$table_show_timepoints)) {
