@@ -364,9 +364,11 @@ get_data_proc = function(data_drive) {
     term,
     year_term_str = glue('{year} T{term}', .envir = .SD),
     year_term_num = year + (term - 1) / 3,
-    region = NA,
-    school_id = NA,
-    school_name = fifelse(school_name == '', NA, school_name),
+    # region = NA,
+    region = rep_len(c('Kgatleng', 'South East'), .N), # TODO: remove placeholder
+    school_id = rep_len(c('S0010', 'S0075'), .N), # TODO: remove placeholder
+    # school_name = fifelse(school_name == '', NA, school_name),
+    school_name = rep_len(c('PS 10', 'PS 75'), .N), # TODO: remove placeholder
     facilitator_id_impl = fac_id,
     facilitator_name_impl = NA,
     student_gender,
@@ -438,7 +440,7 @@ get_data_proc = function(data_drive) {
     dp$zones_assessments[timepoint == 'Baseline', .(
       program = 'Zones', delivery_model = 'Direct',
       year, term, year_term_str, year_term_num,
-      region = 'Unknown', school_id, school_name,
+      region, school_id, school_name,
       facilitator_id_impl, facilitator_name_impl,
       student_id, student_gender, student_age, student_standard)],
     fill = TRUE)

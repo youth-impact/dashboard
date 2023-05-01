@@ -111,19 +111,37 @@ get_y_title = function(percent = TRUE, points = FALSE) {
 }
 
 get_overview_banner = function(students, program = 'connected') {
-  n_unique = students[, .(
-    students = uniqueN(student_id),
-    facilitators = uniqueN(
-      .SD, by = c('facilitator_id_impl', 'facilitator_name_impl')),
-    schools = uniqueN(.SD, by = c('school_id', 'school_name')),
-    regions = uniqueN(region))]
-  n_unique = n_unique[, lapply(.SD, scales::label_comma())]
+  if (program == 'zones') {
+    n_unique = students[timepoint == 'Baseline', .(
+      students = uniqueN(.SD, by = 'student_id'),
+      facilitators = uniqueN(
+        .SD, by = c('facilitator_id_impl', 'facilitator_name_impl')),
+      schools = uniqueN(.SD, by = c('school_id', 'school_name')),
+      regions = uniqueN(.SD, by = 'region'))]
 
-  metrics = students[, .(
-    pct_beginner =
-      100 * sum(level_beginner_baseline - level_beginner_endline) / .N,
-    pct_ace = 100 * sum(level_ace_endline - level_ace_baseline) / .N,
-    pct_improved = 100 * sum(level_improved) / .N)]
+    metrics = students[student_gender == 'Female', .(
+      pct_younger = 100 * sum(know_hiv_least_10to19, na.rm = TRUE) /
+        sum(!is.na(know_hiv_least_10to19)),
+      pct_older = 100 * sum(know_hiv_riskiest_older, na.rm = TRUE) /
+        sum(!is.na(know_hiv_riskiest_older))),
+      keyby = timepoint][, lapply(.SD, diff), .SDcols = !'timepoint']
+
+  } else {
+    n_unique = students[, .(
+      students = uniqueN(.SD, by = 'student_id'),
+      facilitators = uniqueN(
+        .SD, by = c('facilitator_id_impl', 'facilitator_name_impl')),
+      schools = uniqueN(.SD, by = c('school_id', 'school_name')),
+      regions = uniqueN(.SD, by = 'region'))]
+
+    metrics = students[, .(
+      pct_beginner =
+        100 * sum(level_beginner_baseline - level_beginner_endline) / .N,
+      pct_ace = 100 * sum(level_ace_endline - level_ace_baseline) / .N,
+      pct_improved = 100 * sum(level_improved) / .N)]
+  }
+
+  n_unique = n_unique[, lapply(.SD, scales::label_comma())]
   metrics = metrics[, lapply(.SD, scales::label_number(accuracy = 1))]
 
   align = 'center'
@@ -131,7 +149,7 @@ get_overview_banner = function(students, program = 'connected') {
   sty_unit = 'font-size:20px;'
   icls = 'fa-2x'
   sp = HTML('&nbsp;')
-  wds = if (program == 'connected') {
+  wds = if (program %in% c('connected', 'zones')) {
     list(students = 3, facilitators = 3, schools = 3, regions = 3)
   } else {
     list(students = 5, schools = 4, regions = 3, facilitators = 1)
@@ -159,20 +177,40 @@ get_overview_banner = function(students, program = 'connected') {
     strong(n_unique$regions, style = sty_n), sp,
     icon('map-location', icls), br(), p('Regions', style = sty_unit))
 
-  ui_row_program = if (program == 'connected') {
+  ui_row_counts = if (program %in% c('connected', 'zones')) {
     fluidRow(
       ui_cols$students, ui_cols$facilitators, ui_cols$schools, ui_cols$regions)
   } else {
     fluidRow(ui_cols$students, ui_cols$schools, ui_cols$regions)
   }
 
-  title_ace = paste(
-    'Increase in', if (program != 'tarllit') 'Numeracy' else 'Literacy')
-  title_beginner = paste(
-    'Decrease in', if (program != 'tarllit') 'Innumeracy' else 'Illiteracy')
+  ui_row_kpis = if (program == 'zones') {
+    title_younger = paste(
+      'Increase in females who know 10-to-19-year-olds',
+      'have lowest prevalence of HIV')
+    title_older = paste(
+      'Increase in females who know older partners',
+      'have highest risk of transmitting HIV')
 
-  wellPanel(
-    ui_row_program,
+    fluidRow(
+      column(
+        width = 6, style = 'background-color:#a6cee3;',
+        p(strong(metrics$pct_younger, style = sty_n),
+          a(' %-points', br(), title_younger, style = sty_unit))
+      ),
+      column(
+        width = 6, style = 'background-color:#fb9a99;',
+        p(strong(metrics$pct_older, style = sty_n),
+          a(' %-points', br(), title_older, style = sty_unit))
+      )
+    )
+
+  } else {
+    title_ace = paste(
+      'Increase in', if (program == 'tarllit') 'Literacy' else 'Numeracy')
+    title_beginner = paste(
+      'Decrease in', if (program == 'tarllit') 'Illiteracy' else 'Innumeracy')
+
     fluidRow(
       column(
         width = 5, align = align, style = 'background-color:#a6cee3;',
@@ -190,7 +228,9 @@ get_overview_banner = function(students, program = 'connected') {
           a(' %', br(), get_title('improved'), style = sty_unit))
       )
     )
-  )
+  }
+
+  wellPanel(ui_row_counts, ui_row_kpis)
 }
 
 #' Get narrative text describing a round of ConnectEd
@@ -279,7 +319,7 @@ get_barplot_data = function(data, x_col, col, by_treatment, percent) {
 get_barplot_summary = function(
     data, col, fills, title = waiver(), x_col = 'timepoint',
     by_treatment = FALSE, percent = TRUE, bar_width = 0.7, text_size = 5,
-    y_lims = NULL) {
+    y_lims = NULL, ...) {
 
   stopifnot(is_logical(by_treatment))
   stopifnot(is_logical(percent))
@@ -296,7 +336,7 @@ get_barplot_summary = function(
     scale_fill_manual(drop = FALSE, values = fills) +
     theme(axis.title.x = element_blank(), legend.position = 'none')
 
-  if (by_treatment) p = p + facet_wrap(vars(treatment_wrap))
+  if (by_treatment) p = p + facet_wrap(vars(treatment_wrap), ...)
   p
 }
 
@@ -547,19 +587,39 @@ get_metrics = function(data_long, data_wide, by_cols, time_col = 'timepoint') {
 }
 
 get_metrics_zones = function(data, q_cols, by_cols) {
+  by_cols_2 = c(by_cols, 'student_gender', 'timepoint')
+
   metrics = data[
     , lapply(.SD, \(x) 100 * sum(x, na.rm = TRUE) / sum(!is.na(x))),
-    keyby = c(by_cols, 'timepoint'), .SDcols = q_cols]
+    keyby = by_cols_2, .SDcols = q_cols]
 
-  form = formula(glue('{y} ~ timepoint', y = paste(by_cols, collapse = '+')))
-  metrics = dcast(metrics, form, value.var = q_cols)
+  form = formula(glue(
+    '{y} ~ student_gender + timepoint',
+    y = paste(by_cols, collapse = '+')))
+  metrics = dcast(metrics, form, value.var = q_cols) #c(q_cols, 'n_students')
   setnames(metrics, tolower)
 
-  for (j in q_cols) {
-    set(metrics, j = paste0(j, '_diff'),
-        value = metrics[[paste0(j, '_endline')]] -
-          metrics[[paste0(j, '_baseline')]])
+  counts = data[, .(
+    n_terms = uniqueN(year_term_str),
+    n_females = sum(timepoint == 'Baseline' & student_gender == 'Female'),
+    n_males = sum(timepoint == 'Baseline' & student_gender == 'Male')),
+    keyby = by_cols]
+  metrics = merge(metrics, counts, by = by_cols)
+
+  for (q in q_cols) {
+    for (g in c('female', 'male')) {
+      col_pre = glue('{q}_{g}_')
+      cols_now = paste0(col_pre, c('baseline', 'endline'))
+      if (all(is.na(metrics[, ..cols_now]))) {
+        metrics[, (cols_now) := NULL]
+      } else {
+        set(metrics, j = paste0(col_pre, 'diff'),
+            value = metrics[[cols_now[2L]]] - metrics[[cols_now[1L]]])
+      }
+    }
   }
-  setcolorder(metrics, paste0(q_cols, '_diff'), after = length(by_cols))
-  setorderv(metrics, paste0(q_cols, '_diff'), order = -1L)
+
+  cols_diff = colnames(metrics)[endsWith(colnames(metrics), '_diff')]
+  setorderv(metrics, cols_diff, order = -1L)
+  setcolorder(metrics, cols_diff, after = length(by_cols))
 }
