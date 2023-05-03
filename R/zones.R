@@ -33,7 +33,7 @@ zones_ui = function(id) {
           br()
         ),
         tabPanel(
-          title = 'Outcomes by School',
+          title = 'Outcomes as Table',
           br(),
           uiOutput(ns('ui_table')),
           div(dataTableOutput(ns('table_kpis')), style = 'font-size:80%')
@@ -142,18 +142,39 @@ zones_server = function(id, data_proc) {
       ns = session$ns
       fluidRow(
         column(
-          width = 12, align = 'right',
+          width = 6,
+          tags$head(tags$style(HTML('label{float:left;}'))),
+          radioButtons(
+            inputId = ns('table_group_by'),
+            label = a('Aggregate by ', HTML('&nbsp;')),
+            choiceNames = list(
+              a('school', HTML('&nbsp;')),
+              a('region', HTML('&nbsp;'))),
+            choiceValues = c('school', 'region'),
+            inline = TRUE,
+            width = '100%')
+        ),
+        column(
+          width = 6, align = 'right',
           downloadButton(ns('download_table'), style = 'font-size:80%')
         ),
         br(), br()
       )
     })
 
-    metrics_by_school = reactive({
-      req(data_filt)
+    metrics_by_cols = reactive({
+      req(input$table_group_by)
+      switch(
+        input$table_group_by,
+        school = c('school_name', 'school_id', 'region'),
+        region = 'region')
+    })
+
+    metrics_by_group = reactive({
+      req(data_filt, metrics_by_cols)
 
       q_cols = c('know_hiv_least_10to19', 'know_hiv_riskiest_older')
-      by_cols = c('school_name', 'school_id', 'region')
+      by_cols = metrics_by_cols()
       metrics = get_metrics_zones(data_filt(), q_cols, by_cols)
 
       cols_old = c(
@@ -169,20 +190,21 @@ zones_server = function(id, data_proc) {
              'lowest prevalence of HIV (%-points)', g = c('female', 'male')),
         paste('Increase in females who know older partners have',
               'highest risk of transmitting HIV (%-points)'))
-      setnames(metrics, cols_old, cols_new)
+      setnames(metrics, cols_old, cols_new, skip_absent = TRUE)
     })
 
     output$download_table = downloadHandler(
-      filename = \() 'zones_outcomes_by_school.xlsx',
+      filename = \() glue('zones_outcomes_by_{input$table_group_by}.xlsx'),
       content = function(file) {
-        writexl::write_xlsx(metrics_by_school(), file)}
+        writexl::write_xlsx(metrics_by_group(), file)}
     )
 
     output$table_kpis = renderDataTable({
-      req(data_filt)#, !is.null(input$table_show_timepoints))
+      req(metrics_by_group)
+      #, !is.null(input$table_show_timepoints))
 
-      metrics = copy(metrics_by_school())
-      by_cols = c('school_id', 'school_name', 'region')
+      metrics = copy(metrics_by_group())
+      by_cols = metrics_by_cols()
       cols_num = colnames(metrics)[(length(by_cols) + 1L):(ncol(metrics) - 2L)]
 
       # if (isFALSE(input$table_show_timepoints)) {

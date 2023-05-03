@@ -263,7 +263,8 @@ tarlnum_server = function(id, data_proc) {
             inputId = ns('school_kpis_by_timepoint'),
             label = 'Show key outcomes for baseline and endline',
             value = FALSE,
-            width = '100%')),
+            width = '100%')
+        ),
         column(
           width = 6, align = 'right',
           downloadButton(ns('download_by_school'), style = 'font-size:80%')
