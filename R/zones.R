@@ -153,17 +153,17 @@ zones_server = function(id, data_proc) {
       req(data_filt)
 
       q_cols = c('know_hiv_least_10to19', 'know_hiv_riskiest_older')
-      by_cols = c('school_id', 'school_name', 'region')
+      by_cols = c('school_name', 'school_id', 'region')
       metrics = get_metrics_zones(data_filt(), q_cols, by_cols)
 
       cols_old = c(
-        'school_name', 'school_id', 'region', 'n_terms',
+        'school_name', 'school_id', 'region', #'n_terms',
         'n_females', 'n_males',
         'know_hiv_least_10to19_female_diff',
         'know_hiv_least_10to19_male_diff',
         'know_hiv_riskiest_older_female_diff')
       cols_new = c(
-        'School Name', 'School ID', 'Region', 'Number of Terms',
+        'School Name', 'School ID', 'Region', #'Number of Terms',
         glue('Number of {g}s', g = c('Female', 'Male')),
         glue('Increase in {g}s who know 10-to-19-y.o.s have ',
              'lowest prevalence of HIV (%-points)', g = c('female', 'male')),
@@ -183,7 +183,7 @@ zones_server = function(id, data_proc) {
 
       metrics = copy(metrics_by_school())
       by_cols = c('school_id', 'school_name', 'region')
-      cols_num = colnames(metrics)[(length(by_cols) + 1L):(ncol(metrics) - 3L)]
+      cols_num = colnames(metrics)[(length(by_cols) + 1L):(ncol(metrics) - 2L)]
 
       # if (isFALSE(input$table_show_timepoints)) {
         cols_drop = colnames(metrics)[

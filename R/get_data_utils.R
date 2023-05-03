@@ -364,11 +364,10 @@ get_data_proc = function(data_drive) {
     term,
     year_term_str = glue('{year} T{term}', .envir = .SD),
     year_term_num = year + (term - 1) / 3,
-    # region = NA,
-    region = rep_len(c('Kgatleng', 'South East'), .N), # TODO: remove placeholder
-    school_id = rep_len(c('S0010', 'S0075'), .N), # TODO: remove placeholder
-    # school_name = fifelse(school_name == '', NA, school_name),
-    school_name = rep_len(c('PS 10', 'PS 75'), .N), # TODO: remove placeholder
+    # TODO: remove placeholders for region, school_id, and school_name
+    region = rep_len(rep_len(c('Kgatleng', 'South East'), 10L), .N),
+    school_id = rep_len(paste0('S0', 0:9), .N),
+    school_name = rep_len(paste0('PS 0', 0:9), .N),
     facilitator_id_impl = fac_id,
     facilitator_name_impl = NA,
     student_gender,

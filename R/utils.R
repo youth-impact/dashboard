@@ -269,12 +269,16 @@ get_round_text = function(data_filt) {
 }
 
 get_tooltips = function(
-    n, pct = NULL, pre = NULL, suf = NULL, entity = 'students') {
-  n_label = scales::label_comma()(n)
-  ans = glue('{n_label} {entity}')
-  if (!is.null(pct)) {
-    pct_label = label_percent_func(pct)
-    ans = glue('{ans} ({pct_label})')
+    n = NULL, pct = NULL, pre = NULL, suf = NULL, entity = 'students') {
+  if (is.null(n)) {
+    ans = label_percent_func(pct)
+  } else {
+    n_label = scales::label_comma()(n)
+    ans = glue('{n_label} {entity}')
+    if (!is.null(pct)) {
+      pct_label = label_percent_func(pct)
+      ans = glue('{ans} ({pct_label})')
+    }
   }
   if (!is.null(pre)) ans = glue('{pre}\n{ans}')
   if (!is.null(suf)) ans = glue('{ans}\n{suf}')
@@ -599,7 +603,7 @@ get_metrics_zones = function(data, q_cols, by_cols) {
   setnames(metrics, tolower)
 
   counts = data[, .(
-    n_terms = uniqueN(year_term_str),
+    # n_terms = uniqueN(year_term_str),
     n_females = sum(timepoint == 'Baseline' & student_gender == 'Female'),
     n_males = sum(timepoint == 'Baseline' & student_gender == 'Male')),
     keyby = by_cols]
