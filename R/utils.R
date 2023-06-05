@@ -249,7 +249,8 @@ get_round_text = function(data_filt) {
     br(), strong('Dates:'), # using en-dash
     paste(rd_now$baseline_start_month, rd_now$endline_end_month, sep = '–'),
     ' ', rd_now$year, br(),
-    strong('Purpose: '), rd_now$purpose, br(),
+    strong('Theme: '), rd_now$theme, br(),
+    strong('Question: '), rd_now$question, br(),
     strong('Conclusion: '), rd_now$conclusion)
 
   data_now = merge(
