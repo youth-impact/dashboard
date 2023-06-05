@@ -1,13 +1,14 @@
 get_metadata_drive = function(folder_url) {
   metadata = setDT(drive_ls(folder_url))
-  metadata = metadata[!startsWith(name, '_')]
   setkey(metadata, name)
-  metadata[, modified_time := sapply(
-    metadata$drive_resource, \(f) f$modifiedTime)][]
+  metadata[, modified_time := sapply(drive_resource, \(f) f$modifiedTime)]
+  metadata[, mime_type := sapply(drive_resource, \(f) f$mimeType)]
+  metadata[]
 }
 
 get_data_drive = function(folder_url) {
   metadata = get_metadata_drive(folder_url)
+  metadata = metadata[!startsWith(name, '_')]
   metadata[, drive_resource := NULL]
 
   metadata_path = '_cache_metadata.qs'
@@ -25,17 +26,30 @@ get_data_drive = function(folder_url) {
   } else {
     data_drive = lapply(seq_len(nrow(metadata)), \(i) {
       local_path = tempfile()
-      drive_download(metadata$id[i], local_path, overwrite = TRUE)
-      if (endsWith(metadata$name[i], '.csv')) {
+      m = metadata[i]
+      if (endsWith(m$name, '.csv') && m$mime_type == 'text/csv') {
+        drive_download(m$id, local_path, overwrite = TRUE)
         fread(local_path)
-      } else if (endsWith(metadata$name[i], '.dta')) {
+      } else if (
+        endsWith(m$name, '.dta') && m$mime_type == 'application/octet-stream') {
+        drive_download(m$id, local_path, overwrite = TRUE)
         setDT(as_factor(haven::read_dta(local_path)))
+      } else if (m$mime_type == 'application/vnd.google-apps.spreadsheet') {
+        gsheet_meta = gs4_get(m$id)
+        wsheet_names = gsheet_meta$sheets$name[
+          !startsWith(gsheet_meta$sheets$name, '_')]
+        wsheets = lapply(wsheet_names, \(x) setDT(read_sheet(m$id, x)))
+        names(wsheets) = wsheet_names
+        wsheets
       } else {
         NULL
       }
     })
 
     names(data_drive) = tools::file_path_sans_ext(metadata$name)
+    data_drive = purrr::list_flatten(data_drive)
+    names(data_drive) = gsub('_metadata_', '_', names(data_drive))
+
     data_drive$`_file_metadata` = metadata
     qs::qsave(data_drive, data_path)
     qs::qsave(metadata, metadata_path)
@@ -122,7 +136,7 @@ get_data_validation = function(data_drive) {
     rbindlist(
       data_drive[startsWith(names(data_drive), 'zones_assessments_')],
       fill = TRUE, idcol = 'file_name'),
-    data_drive$zones_metadata, by = 'file_name')
+    data_drive$zones_files, by = 'file_name')
 
   cols = c(
     'year', 'term', 'round', 'student_gender', 'school_name',
@@ -152,7 +166,7 @@ get_data_proc = function(data_drive) {
     must.include = c(
       'connected_arms', 'connected_rounds', 'connected_students',
       'connected_treatments', 'numeracy_levels', 'tarlnum_assessments',
-      'literacy_levels', 'tarllit_students', 'zones_metadata'))
+      'literacy_levels', 'tarllit_students', 'zones_files'))
 
   dp = lapply(data_drive, copy)
 
@@ -357,7 +371,7 @@ get_data_proc = function(data_drive) {
     rbindlist(
       data_drive[startsWith(names(data_drive), 'zones_assessments_')],
       fill = TRUE, idcol = 'file_name'),
-    data_drive$zones_metadata, by = 'file_name')
+    data_drive$zones_files, by = 'file_name')
 
   dp$zones_assessments = zones_assessments[, .(
     year,

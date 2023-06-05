@@ -6,6 +6,7 @@ library('forcats')
 library('ggplot2')
 library('glue')
 library('googledrive')
+library('googlesheets4')
 library('plotly')
 library('shiny')
 library('shinyWidgets')
@@ -38,6 +39,7 @@ token_path = if (Sys.getenv('GOOGLE_TOKEN') == '') {
   Sys.getenv('GOOGLE_TOKEN')
 }
 drive_auth(path = token_path)
+gs4_auth(token = drive_token())
 
 ########################################
 
