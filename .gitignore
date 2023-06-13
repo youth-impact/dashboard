@@ -7,3 +7,5 @@ secrets
 *rsconnect/
 README.html
 _*
+google_token.json
+draft*.R

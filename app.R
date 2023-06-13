@@ -2,7 +2,7 @@
 ui = navbarPage(
   theme = bslib::bs_theme(bootswatch = 'cosmo'),
   title = 'Youth Impact',
-  selected = 'Zones', # temporary
+  # selected = 'Zones',
   tabPanel(
     title = 'Reach',
     reach_ui('reach')

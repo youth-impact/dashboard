@@ -1,5 +1,4 @@
-# TODO
-
+# specify the layout of the ConnectEd UI
 connected_ui = function(id) {
   ns = NS(id)
   ht = 300
@@ -46,9 +45,11 @@ connected_ui = function(id) {
   )
 }
 
+# specify everything that will go into the UI
 connected_server = function(id, data_proc) {
   moduleServer(id, function(input, output, session) {
 
+    # make input options to select round and whether to split by treatment
     output$ui_input = renderUI({
       req(data_proc)
       ns = session$ns
@@ -70,6 +71,7 @@ connected_server = function(id, data_proc) {
       )
     })
 
+    # make a pooled dataset from all rounds and all treatments
     data_pool = reactive({
       req(data_proc)
       tbls = c(
@@ -83,11 +85,13 @@ connected_server = function(id, data_proc) {
       data_pool
     })
 
+    # make overview banner with counts and KPIs over all rounds
     output$overview_banner = renderUI({
       req(data_proc)
       get_overview_banner(data_proc()$connected_students_nomissing, 'connected')
     })
 
+    # use pooled dataset to make figure of KPIs over all rounds
     output$overview_plot_kpis = renderPlotly({
       req(data_pool)
 
@@ -120,6 +124,7 @@ connected_server = function(id, data_proc) {
         layout(annotations = annos, margin = list(t = 40))
     })
 
+    # make filtered dataset based on the selected round
     data_filt = reactive({
       req(data_proc, input$round_id)
       filt = CJ(round_id = input$round_id)
@@ -127,6 +132,7 @@ connected_server = function(id, data_proc) {
         data_proc()[startsWith(names(data_proc()), 'connected')], filt)
     })
 
+    # make figure of trends in KPIs over all rounds
     output$plot_trends = renderPlotly({
       req(data_proc)
       get_plot_trends_connected(
@@ -134,26 +140,30 @@ connected_server = function(id, data_proc) {
         data_proc()$connected_rounds)
     })
 
+    # make header based on the selected round
     output$round_header_kpis = output$round_header_detailed = renderUI({
       h4(data_filt()$connected_rounds$round_name)
     })
 
+    # make overview banner with counts and KPIs for the selected round
     output$round_banner_kpis = output$round_banner_detailed = renderUI({
-      req(data_proc)
+      req(data_filt)
       get_overview_banner(data_filt()$connected_students_nomissing, 'connected')
     })
 
-    # narrative text for the selected round
+    # make narrative text for the selected round
     output$round_text_kpis = output$round_text_detailed = renderUI({
       req(data_filt)
       get_round_text(data_filt())
     })
 
+    # make figure of KPIs using the filtered dataset and the pooled dataset
     output$plot_kpis = renderPlotly({
       req(data_filt)
       long = copy(data_filt()$connected_assessments_nomissing)
       wide = copy(data_filt()$connected_students_nomissing)
 
+      # if not splitting by treatment, change filtered dataset's treatment columns
       if (isFALSE(input$by_treatment)) {
         round_name = data_filt()$connected_rounds$round_name
         treatment_now = glue('{round_name},\nAny Treatment')
@@ -169,7 +179,7 @@ connected_server = function(id, data_proc) {
     }) |>
       bindCache(input$round_id, input$by_treatment)
 
-    # plot for A/B detailed results
+    # make figure of detailed A/B results for selected round
     output$plot_detailed = renderPlotly({
       req(data_filt)
 
