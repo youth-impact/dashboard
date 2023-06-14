@@ -1,54 +1,53 @@
 # create the ui object for the shiny app
-
 ui = navbarPage(
   theme = bslib::bs_theme(bootswatch = 'cosmo'),
   title = 'Youth Impact',
-  selected = 'ConnectEd', # temporary
-
+  # selected = 'Zones',
   tabPanel(
     title = 'Reach',
-    'reach stuff' # placeholder
+    reach_ui('reach')
   ),
-
   tabPanel(
     title = 'Zones',
-    'zones stuff' # placeholder
+    zones_ui('zones')
   ),
-
   tabPanel(
     title = 'ConnectEd',
     connected_ui('connected')
   ),
-
   tabPanel(
     title = 'TaRL Numeracy',
     tarlnum_ui('tarlnum')
   ),
-
   tabPanel(
     title = 'TaRL Literacy',
-    'tarl literacy stuff' # placeholder
+    tarllit_ui('tarllit')
   ),
-
   tabPanel(
-    'Status',
-    data_status_ui('data_status')
+    title = 'Data Validation',
+    get_data_ui('get_data')
   )
 )
 
 # create the server object for the shiny app
 server = function(input, output, session) {
-  # load raw data from the Google Drive folder
-  data_raw = get_data_raw_server('get_data_raw', params$folder_url)
+  # load data
+  data_proc = get_data_server('get_data', params$folder_url)
 
-  # create display elements for status of raw data files
-  data_status_server('data_status', data_raw)
+  # Reach
+  reach_server('reach', data_proc)
+
+  # Zones
+  zones_server('zones', data_proc)
 
   # ConnectEd
-  connected_server('connected', data_raw)
+  connected_server('connected', data_proc)
 
   # TaRL numeracy
-  tarlnum_server('tarlnum', data_raw)
+  tarlnum_server('tarlnum', data_proc)
+
+  # TaRL literacy
+  tarllit_server('tarllit', data_proc)
 }
 
 # create the shiny app object

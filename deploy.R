@@ -9,10 +9,6 @@ if (Sys.getenv('GITHUB_ACTIONS') == 'true') {
   # and write the path to the file to .Renviron
   # now the json file and .Renviron should be sent to shinyapps.io
 
-  # make sure quotation marks are escaped and there are no line breaks
-  # g = gsub('\"', '\\\\"', Sys.getenv('GOOGLE_TOKEN'))
-  # cat(glue::glue('GOOGLE_TOKEN="{g}"'), '\n', file = '.Renviron', append = TRUE)
-
   path = 'google_token.json'
   cat(Sys.getenv('GOOGLE_TOKEN'), '\n', file = path)
   cat(paste0('GOOGLE_TOKEN=', path), '\n', file = '.Renviron', append = TRUE)
