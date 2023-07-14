@@ -116,8 +116,7 @@ get_overview_banner = function(students, program = 'connected') {
   if (program == 'zones') {
     n_unique = students[timepoint == 'Baseline', .(
       students = uniqueN(.SD, by = 'student_id'),
-      facilitators = uniqueN(
-        .SD, by = c('facilitator_id_impl', 'facilitator_name_impl')),
+      facilitators = uniqueN(.SD, by = 'facilitator_id_impl'),
       schools = uniqueN(.SD, by = c('school_id', 'school_name')),
       regions = uniqueN(.SD, by = 'region'))]
 
@@ -131,8 +130,7 @@ get_overview_banner = function(students, program = 'connected') {
   } else {
     n_unique = students[, .(
       students = uniqueN(.SD, by = 'student_id'),
-      facilitators = uniqueN(
-        .SD, by = c('facilitator_id_impl', 'facilitator_name_impl')),
+      facilitators = uniqueN(.SD, by = 'facilitator_id_impl'),
       schools = uniqueN(.SD, by = c('school_id', 'school_name')),
       regions = uniqueN(.SD, by = 'region'))]
 

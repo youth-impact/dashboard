@@ -66,28 +66,28 @@ get_data_validation = function(data_drive) {
 
   # ConnectEd
   cols = c(
-    'hh_id', 'stud_age_bl', 'stud_std_bl', 'stud_level_bl', 'school_id_bl',
-    'school_name_bl', 'facilitator_id_i', 'facilitator_i', 'stud_level',
-    'treatment', 'round', 'stud_sex_bl', 'region_bl')
+    'round', 'treatment', 'hh_id', 'stud_level_b', 'stud_level',
+    'school_name', 'stud_female', 'region') #'facilitator_i'
+
   connected_1 = data_drive$connected_students[
     , lapply(.SD, get_counts), .SDcols = cols]
   connected_1[, n_type := n_types]
   setcolorder(connected_1, 'n_type')
 
-  connected_2 = data_drive$connected_students[
-    , .(n_facilitator_i = uniqueN(facilitator_i)),
-    keyby = facilitator_id_i][n_facilitator_i > 1L]
+  # connected_2 = data_drive$connected_students[
+  #   , .(n_facilitator_i = uniqueN(facilitator_i)),
+  #   keyby = facilitator_id_i][n_facilitator_i > 1L]
 
-  connected_3 = data_drive$connected_students[
-    , .(n_school_name_bl = uniqueN(school_name_bl)),
-    keyby = school_id_bl][n_school_name_bl > 1L]
+  # connected_3 = data_drive$connected_students[
+  #   , .(n_school_name_bl = uniqueN(school_name_bl)),
+  #   keyby = school_id_bl][n_school_name_bl > 1L]
 
   cat('### ConnectEd counts of unique, missing, and empty string values\n')
   print(connected_1)
-  cat('\n### ConnectEd facilitator_id_i linked to >1 facilitator_i\n')
-  print(connected_2)
-  cat('\n### ConnectEd school_id_bl linked to >1 school_name_bl\n')
-  print(connected_3)
+  # cat('\n### ConnectEd facilitator_id_i linked to >1 facilitator_i\n')
+  # print(connected_2)
+  # cat('\n### ConnectEd school_id linked to >1 school_name_bl\n')
+  # print(connected_3)
 
   # TaRL Numeracy
   cols = c(
@@ -207,18 +207,19 @@ get_data_proc = function(data_drive) {
     arm_id,
     treatment_id,
     treatment_name,
-    treatment_wrap = str_wrap(treatment_name, 20L),
-    region = as.character(region_bl),
-    school_id = school_id_bl,
-    school_name = fifelse(school_name_bl == '', NA, school_name_bl),
-    facilitator_id_impl = fifelse(facilitator_id_i == '', NA, facilitator_id_i),
-    facilitator_name_impl = fifelse(facilitator_i == '', NA, facilitator_i),
+    treatment_wrap = str_wrap(treatment_name, 22L),
+    region,
+    school_id = NA, # not provided
+    school_name = fifelse(school_name == '', NA, school_name),
+    # TODO: need implementation facilitator instead of baseline or endline
+    facilitator_id_impl = fifelse(facilitator_id_b == '', NA, facilitator_id_b),
+    # facilitator_name_impl = fifelse(facilitator_i == '', NA, facilitator_i),
     student_id = hh_id, # one student per household
     student_gender = fifelse(
-      is.na(stud_sex_bl), 'Unknown', as.character(stud_sex_bl)),
-    student_age = stud_age_bl,
-    student_standard = stud_std_bl,
-    student_level_str_baseline = factor(stud_level_bl, numer_levs),
+      is.na(stud_female), 'Unknown', as.character(stud_female)),
+    # student_age = stud_age_bl,
+    student_standard = NA, # not provided
+    student_level_str_baseline = factor(stud_level_b, numer_levs),
     student_level_str_endline = factor(stud_level, numer_levs))]
 
   dp$connected_students[, `:=`(
@@ -275,13 +276,13 @@ get_data_proc = function(data_drive) {
       school_name,
       school_id,
       facilitator_id_impl = NA,
-      facilitator_name_impl = NA,
+      # facilitator_name_impl = NA,
       student_id_orig = uid_s,
       student_gender = fcase(
         stu_gender == 'F', 'Female',
         stu_gender == 'M', 'Male',
         default = 'Unknown'),
-      student_age = stu_age,
+      # student_age = stu_age,
       student_standard = stu_std,
       student_class = fifelse(stu_class == '', 'Default', stu_class),
       timepoint = factor(round, c('Baseline', 'Midline', 'Endline')),
@@ -293,8 +294,8 @@ get_data_proc = function(data_drive) {
     student_level_num = as.integer(student_level_str),
     student_id = paste(
       year, term, delivery_model, duration_days, region,
-      school_name, school_id, student_id_orig, student_gender,
-      student_age, student_standard, student_class, sep = '|'),
+      school_name, school_id, student_id_orig, student_gender, # student_age,
+      student_standard, student_class, sep = '|'),
     level_beginner = student_level_str == 'Beginner',
     level_ace = student_level_str == 'Division')]
   setkeyv(dp$tarlnum_assessments, c('student_id', 'timepoint'))
@@ -322,10 +323,10 @@ get_data_proc = function(data_drive) {
     school_name,
     school_id,
     facilitator_id_impl = NA,
-    facilitator_name_impl = NA,
+    # facilitator_name_impl = NA,
     student_id_orig = stu_uid,
     student_gender = stu_gender,
-    student_age = stu_age,
+    # student_age = stu_age,
     student_standard = stu_std,
     student_class = stu_class,
     student_level_str_baseline = factor(stu_level_bsl, liter_levs),
@@ -336,8 +337,8 @@ get_data_proc = function(data_drive) {
     year_term_num = year + (term - 1) / 3,
     student_id = paste(
       year, term, delivery_model, duration_days, region,
-      school_name, school_id, student_id_orig, student_gender,
-      student_age, student_standard, student_class, sep = '|'),
+      school_name, school_id, student_id_orig, student_gender,# student_age,
+      student_standard, student_class, sep = '|'),
     student_level_num_baseline = as.integer(student_level_str_baseline),
     student_level_num_endline = as.integer(student_level_str_endline),
     level_beginner_baseline = student_level_str_baseline == 'Beginner',
@@ -383,9 +384,9 @@ get_data_proc = function(data_drive) {
     school_id = rep_len(paste0('S0', 0:9), .N),
     school_name = rep_len(paste0('PS 0', 0:9), .N),
     facilitator_id_impl = fac_id,
-    facilitator_name_impl = NA,
+    # facilitator_name_impl = NA,
     student_gender,
-    student_age = NA,
+    # student_age = NA,
     student_standard = NA,
     timepoint = factor(
       round, c('baseline', 'endline'), c('Baseline', 'Endline')),
@@ -436,26 +437,26 @@ get_data_proc = function(data_drive) {
       program = 'ConnectEd', delivery_model = 'Direct',
       year, term, year_term_str, year_term_num,
       region, school_id, school_name,
-      facilitator_id_impl, facilitator_name_impl,
-      student_id, student_gender, student_age, student_standard)],
+      facilitator_id_impl, #facilitator_name_impl,
+      student_id, student_gender, student_standard)],
     dp$tarlnum_students[, .(
       program = 'TaRL Numeracy', delivery_model,
       year, term, year_term_str, year_term_num,
       region, school_id, school_name,
-      facilitator_id_impl, facilitator_name_impl,
-      student_id, student_gender, student_age, student_standard)],
+      facilitator_id_impl, #facilitator_name_impl,
+      student_id, student_gender, student_standard)],
     dp$tarllit_students[, .(
       program = 'TaRL Literacy', delivery_model,
       year, term, year_term_str, year_term_num,
       region, school_id, school_name,
-      facilitator_id_impl, facilitator_name_impl,
-      student_id, student_gender, student_age, student_standard)],
+      facilitator_id_impl, #facilitator_name_impl,
+      student_id, student_gender, student_standard)],
     dp$zones_assessments[timepoint == 'Baseline', .(
       program = 'Zones', delivery_model = 'Direct',
       year, term, year_term_str, year_term_num,
       region, school_id, school_name,
-      facilitator_id_impl, facilitator_name_impl,
-      student_id, student_gender, student_age, student_standard)],
+      facilitator_id_impl, #facilitator_name_impl,
+      student_id, student_gender, student_standard)],
     fill = TRUE)
   setkeyv(
     dp$reach_students,

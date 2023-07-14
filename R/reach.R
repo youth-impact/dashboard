@@ -87,8 +87,7 @@ reach_server = function(id, data_proc) {
 
       counts = students_filt()[, .(
         n_students = .N,
-        n_facilitators = uniqueN(
-          .SD, by = c('program', 'facilitator_id_impl', 'facilitator_name_impl')),
+        n_facilitators = uniqueN(.SD, by = c('program', 'facilitator_id_impl')),
         n_schools = uniqueN(.SD, by = c('program', 'school_id', 'school_name'))),
         keyby = by_col]
       setorderv(counts, by_col, -1L)
