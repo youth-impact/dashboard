@@ -66,28 +66,29 @@ get_data_validation = function(data_drive) {
 
   # ConnectEd
   cols = c(
-    'round', 'treatment', 'hh_id', 'stud_level_b', 'stud_level',
-    'school_name', 'stud_female', 'region') #'facilitator_i'
+    'round', 'treatment_s', 'id', 'stud_level_b', 'stud_level',
+    'school_b', 'school_id_b', 'stud_female_b', 'region_b',
+    'facilitator_i', 'facilitator_id_i') #'facilitator_i'
 
   connected_1 = data_drive$connected_students[
     , lapply(.SD, get_counts), .SDcols = cols]
   connected_1[, n_type := n_types]
   setcolorder(connected_1, 'n_type')
 
-  # connected_2 = data_drive$connected_students[
-  #   , .(n_facilitator_i = uniqueN(facilitator_i)),
-  #   keyby = facilitator_id_i][n_facilitator_i > 1L]
+  connected_2 = data_drive$connected_students[
+    , .(n_facilitator_i = uniqueN(facilitator_i)),
+    keyby = facilitator_id_i][n_facilitator_i > 1L]
 
-  # connected_3 = data_drive$connected_students[
-  #   , .(n_school_name_bl = uniqueN(school_name_bl)),
-  #   keyby = school_id_bl][n_school_name_bl > 1L]
+  connected_3 = data_drive$connected_students[
+    , .(n_school_b = uniqueN(school_b)),
+    keyby = school_id_b][n_school_b > 1L]
 
   cat('### ConnectEd counts of unique, missing, and empty string values\n')
   print(connected_1)
-  # cat('\n### ConnectEd facilitator_id_i linked to >1 facilitator_i\n')
-  # print(connected_2)
-  # cat('\n### ConnectEd school_id linked to >1 school_name_bl\n')
-  # print(connected_3)
+  cat('\n### ConnectEd facilitator_id_i linked to >1 facilitator_i\n')
+  print(connected_2)
+  cat('\n### ConnectEd school_id linked to >1 school_b\n')
+  print(connected_3)
 
   # TaRL Numeracy
   cols = c(
@@ -196,7 +197,7 @@ get_data_proc = function(data_drive) {
     merge(dp$connected_rounds, by = 'round_id')
 
   students_tmp = dp$connected_students |>
-    merge(arms_tmp, by = c('round', 'treatment'))
+    merge(arms_tmp, by = c('round', 'treatment_s'))
 
   dp$connected_students = students_tmp[, .(
     year,
@@ -208,16 +209,15 @@ get_data_proc = function(data_drive) {
     treatment_id,
     treatment_name,
     treatment_wrap = str_wrap(treatment_name, 22L),
-    region,
-    school_id = NA, # not provided
-    school_name = fifelse(school_name == '', NA, school_name),
-    # TODO: need implementation facilitator instead of baseline or endline
-    facilitator_id_impl = fifelse(facilitator_id_b == '', NA, facilitator_id_b),
+    region = region_b,
+    school_id = school_id_b,
+    school_name = fifelse(school_b == '', NA, school_b),
+    facilitator_id_impl = fifelse(facilitator_id_i == '', NA, facilitator_id_i),
     # facilitator_name_impl = fifelse(facilitator_i == '', NA, facilitator_i),
-    student_id = hh_id, # one student per household
+    student_id = id, # actually household id, but as close as it gets
     student_gender = fifelse(
-      is.na(stud_female), 'Unknown', as.character(stud_female)),
-    # student_age = stud_age_bl,
+      is.na(stud_female_b), 'Unknown', as.character(stud_female_b)),
+    student_age = stud_age_b,
     student_standard = NA, # not provided
     student_level_str_baseline = factor(stud_level_b, numer_levs),
     student_level_str_endline = factor(stud_level, numer_levs))]
