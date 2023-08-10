@@ -1,7 +1,16 @@
 get_data_ui = function(id) {
   ns = NS(id)
 
-  verbatimTextOutput(ns('validation_checks'))
+  sidebarLayout(
+    sidebarPanel(
+      uiOutput(ns('ui_issue')),
+      width = 3
+    ),
+    mainPanel(
+      verbatimTextOutput(ns('validation_checks')),
+      width = 9
+    )
+  )
 }
 
 get_data_server = function(id, folder_url) {
@@ -23,6 +32,12 @@ get_data_server = function(id, folder_url) {
     output$validation_checks = renderPrint({
       req(data_drive)
       get_data_validation(data_drive())
+    })
+
+    output$ui_issue = renderUI({
+      # req(data_drive)
+      # ns = session$ns
+      get_issue_button()
     })
 
     data_proc = reactive({

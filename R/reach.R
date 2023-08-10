@@ -8,6 +8,8 @@ reach_ui = function(id) {
     sidebarPanel(
       h5('Display Options'),
       uiOutput(ns('ui_input')),
+      br(),
+      uiOutput(ns('ui_issue')),
       width = 3
     ),
     mainPanel(
@@ -67,6 +69,11 @@ reach_server = function(id, data_proc) {
       )
     })
 
+    output$ui_issue = renderUI({
+      req(data_proc)
+      get_issue_button()
+    })
+
     students_filt = reactive({
       req(data_proc, input$program, input$delivery_model,
           input$region, input$student_gender)
@@ -87,8 +94,7 @@ reach_server = function(id, data_proc) {
 
       counts = students_filt()[, .(
         n_students = .N,
-        n_facilitators = uniqueN(
-          .SD, by = c('program', 'facilitator_id_impl', 'facilitator_name_impl')),
+        n_facilitators = uniqueN(.SD, by = c('program', 'facilitator_id_impl')),
         n_schools = uniqueN(.SD, by = c('program', 'school_id', 'school_name'))),
         keyby = by_col]
       setorderv(counts, by_col, -1L)

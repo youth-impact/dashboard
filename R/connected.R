@@ -7,6 +7,8 @@ connected_ui = function(id) {
     sidebarPanel(
       h5('Display Options by Round'),
       uiOutput(ns('ui_input')),
+      br(),
+      uiOutput(ns('ui_issue')),
       width = 3
     ),
     mainPanel(
@@ -69,6 +71,11 @@ connected_server = function(id, data_proc) {
         em(tags$sup('‡'),
            'All results based on students assessed at baseline and endline.')
       )
+    })
+
+    output$ui_issue = renderUI({
+      req(data_proc)
+      get_issue_button()
     })
 
     # make a pooled dataset from all rounds and all treatments

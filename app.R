@@ -26,7 +26,8 @@ ui = navbarPage(
   tabPanel(
     title = 'Data Validation',
     get_data_ui('get_data')
-  )
+  ),
+  footer = tags$head(includeHTML('google-analytics.html'))
 )
 
 # create the server object for the shiny app

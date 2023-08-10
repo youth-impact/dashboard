@@ -43,6 +43,14 @@ gs4_auth(token = drive_token())
 
 ########################################
 
+get_issue_button = function(inputId = 'issue_button') {
+  url = 'https://github.com/youth-impact/dashboard/issues/new/choose'
+  onclick = glue("window.open('{url}', '_blank')")
+  actionBttn(
+    inputId = inputId, label = 'Report issue', onclick = onclick,
+    style = 'fill', size = 'sm')
+}
+
 get_data_filtered = function(x, filt = data.table(), filt_by_student = NULL) {
   y = lapply(x, \(d) {
     d_new = if (any(colnames(filt) %in% colnames(d))) {
@@ -116,8 +124,7 @@ get_overview_banner = function(students, program = 'connected') {
   if (program == 'zones') {
     n_unique = students[timepoint == 'Baseline', .(
       students = uniqueN(.SD, by = 'student_id'),
-      facilitators = uniqueN(
-        .SD, by = c('facilitator_id_impl', 'facilitator_name_impl')),
+      facilitators = uniqueN(.SD, by = 'facilitator_id_impl'),
       schools = uniqueN(.SD, by = c('school_id', 'school_name')),
       regions = uniqueN(.SD, by = 'region'))]
 
@@ -131,8 +138,7 @@ get_overview_banner = function(students, program = 'connected') {
   } else {
     n_unique = students[, .(
       students = uniqueN(.SD, by = 'student_id'),
-      facilitators = uniqueN(
-        .SD, by = c('facilitator_id_impl', 'facilitator_name_impl')),
+      facilitators = uniqueN(.SD, by = 'facilitator_id_impl'),
       schools = uniqueN(.SD, by = c('school_id', 'school_name')),
       regions = uniqueN(.SD, by = 'region'))]
 
