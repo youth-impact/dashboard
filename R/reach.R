@@ -8,6 +8,8 @@ reach_ui = function(id) {
     sidebarPanel(
       h5('Display Options'),
       uiOutput(ns('ui_input')),
+      br(),
+      uiOutput(ns('ui_issue')),
       width = 3
     ),
     mainPanel(
@@ -65,6 +67,11 @@ reach_server = function(id, data_proc) {
         ),
         em(tags$sup('‡'), 'All results based on consented students.')
       )
+    })
+
+    output$ui_issue = renderUI({
+      req(data_proc)
+      get_issue_button()
     })
 
     students_filt = reactive({

@@ -43,6 +43,14 @@ gs4_auth(token = drive_token())
 
 ########################################
 
+get_issue_button = function(inputId = 'issue_button') {
+  url = 'https://github.com/youth-impact/dashboard/issues/new/choose'
+  onclick = glue("window.open('{url}', '_blank')")
+  actionBttn(
+    inputId = inputId, label = 'Report issue', onclick = onclick,
+    style = 'fill', size = 'sm')
+}
+
 get_data_filtered = function(x, filt = data.table(), filt_by_student = NULL) {
   y = lapply(x, \(d) {
     d_new = if (any(colnames(filt) %in% colnames(d))) {

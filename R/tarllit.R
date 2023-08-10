@@ -11,6 +11,8 @@ tarllit_ui = function(id) {
       h5('Display Options'),
       uiOutput(ns('ui_input')),
       uiOutput(ns('ui_counts')),
+      br(),
+      uiOutput(ns('ui_issue')),
       width = 3
     ),
     mainPanel(
@@ -95,6 +97,11 @@ tarllit_server = function(id, data_proc) {
           options = get_picker_options('Levels at baseline')
         )
       )
+    })
+
+    output$ui_issue = renderUI({
+      req(data_proc)
+      get_issue_button()
     })
 
     filt = reactive({

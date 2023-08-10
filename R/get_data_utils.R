@@ -87,7 +87,7 @@ get_data_validation = function(data_drive) {
   print(connected_1)
   cat('\n### ConnectEd facilitator_id_i linked to >1 facilitator_i\n')
   print(connected_2)
-  cat('\n### ConnectEd school_id linked to >1 school_b\n')
+  cat('\n### ConnectEd school_id_b linked to >1 school_b\n')
   print(connected_3)
 
   # TaRL Numeracy
