@@ -1,5 +1,6 @@
 # create the ui object for the shiny app
 ui = navbarPage(
+  tags$head(includeHTML('google-analytics.html')),
   theme = bslib::bs_theme(bootswatch = 'cosmo'),
   title = 'Youth Impact',
   # selected = 'Zones',
